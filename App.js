@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
@@ -19,8 +20,10 @@ export default function App() {
   const toggleTheme = () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   const selectLanguage = (targetLang) => setLang(targetLang);
 
+  let screen = null;
+
   if (currentScreen === 'bookDetail') {
-    return (
+    screen = (
       <BookDetailScreen
         theme={theme}
         lang={lang}
@@ -29,10 +32,8 @@ export default function App() {
         onNavigate={(key) => setCurrentScreen(key === 'library' ? 'books' : key)}
       />
     );
-  }
-
-  if (currentScreen === 'books') {
-    return (
+  } else if (currentScreen === 'books') {
+    screen = (
       <BooksScreen
         theme={theme}
         lang={lang}
@@ -47,10 +48,8 @@ export default function App() {
         }}
       />
     );
-  }
-
-  if (currentScreen === 'home') {
-    return (
+  } else if (currentScreen === 'home') {
+    screen = (
       <HomeScreen
         theme={theme}
         lang={lang}
@@ -64,10 +63,8 @@ export default function App() {
         }}
       />
     );
-  }
-
-  if (currentScreen === 'register') {
-    return (
+  } else if (currentScreen === 'register') {
+    screen = (
       <RegisterScreen
         onNavigateToLogin={() => setCurrentScreen('login')}
         theme={theme}
@@ -78,10 +75,8 @@ export default function App() {
         onSelectLanguage={selectLanguage}
       />
     );
-  }
-
-  if (currentScreen === 'forgotPassword') {
-    return (
+  } else if (currentScreen === 'forgotPassword') {
+    screen = (
       <ForgotPasswordScreen
         onNavigateToLogin={() => setCurrentScreen('login')}
         theme={theme}
@@ -92,19 +87,21 @@ export default function App() {
         onSelectLanguage={selectLanguage}
       />
     );
+  } else {
+    screen = (
+      <LoginScreen
+        onNavigateToRegister={() => setCurrentScreen('register')}
+        onNavigateToForgotPassword={() => setCurrentScreen('forgotPassword')}
+        onNavigateHome={() => setCurrentScreen('home')}
+        theme={theme}
+        lang={lang}
+        strings={strings}
+        colors={colors}
+        onToggleTheme={toggleTheme}
+        onSelectLanguage={selectLanguage}
+      />
+    );
   }
 
-  return (
-    <LoginScreen
-      onNavigateToRegister={() => setCurrentScreen('register')}
-      onNavigateToForgotPassword={() => setCurrentScreen('forgotPassword')}
-      onNavigateHome={() => setCurrentScreen('home')}
-      theme={theme}
-      lang={lang}
-      strings={strings}
-      colors={colors}
-      onToggleTheme={toggleTheme}
-      onSelectLanguage={selectLanguage}
-    />
-  );
+  return <GestureHandlerRootView style={{ flex: 1 }}>{screen}</GestureHandlerRootView>;
 }

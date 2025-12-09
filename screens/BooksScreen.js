@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Platform, LayoutAnimation, UIManager } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Platform, LayoutAnimation, UIManager, Animated } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav';
 
@@ -31,6 +32,7 @@ export default function BooksScreen({ theme, lang, strings, colors, onNavigate, 
   const [tab, setTab] = useState('all'); // all | category | available
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 12;
+  const openRowRef = useRef(null);
 
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -97,67 +99,125 @@ export default function BooksScreen({ theme, lang, strings, colors, onNavigate, 
       </View>
 
       {/* List */}
-      <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
-        {pageData.map((b) => (
-          <TouchableOpacity
-            key={b.title}
-            style={[styles.bookRow, { borderColor: colors.inputBorder }]}
-            activeOpacity={0.7}
-            onPress={() => onNavigate?.('bookDetail')}
-          >
-            <View style={[styles.cover, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-              <Ionicons name="book-outline" size={22} color={colors.buttonBg} />
-            </View>
-            <View style={styles.bookInfo}>
-              <Text style={[styles.bookTitle, { color: colors.text }]} numberOfLines={2}>
-                {b.title}
-              </Text>
-              <Text style={[styles.bookMeta, { color: colors.muted }]} numberOfLines={1}>
-                {b.author}
-              </Text>
-              <Text style={[styles.bookMeta, { color: b.status === 'available' ? '#2ecc71' : colors.muted }]}>
-                {b.status === 'available' ? (strings.available || 'Có sẵn') : strings.borrowed || 'Đã mượn'}
-              </Text>
-              {b.due && (
-                <Text style={[styles.bookMeta, { color: colors.muted }]}>
-                  {strings.due || 'Hạn'}: {b.due}
-                </Text>
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <ScrollView
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.listAndFooter}>
+          {pageData.map((b) => {
+            const renderRightActions = (progress, dragX) => {
+              const translateX = dragX.interpolate({
+                inputRange: [-200, -50, 0],
+                outputRange: [0, 75, 200],
+                extrapolate: 'clamp',
+              });
+              return (
+                <Animated.View style={[styles.swipeActions, { transform: [{ translateX }] }]}>
+                  <TouchableOpacity style={[styles.swipeBtn, { backgroundColor: '#f0f0f0' }]}>
+                    <Ionicons name="bookmark-outline" size={18} color={colors.text} />
+                    <Text style={[styles.swipeText, { color: colors.text }]} numberOfLines={1}>
+                      {strings.save || 'Lưu'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.swipeBtn, { backgroundColor: '#f6c344' }]}>
+                    <Ionicons name="heart-outline" size={18} color="#1f1f1f" />
+                    <Text style={[styles.swipeText, { color: '#1f1f1f' }]} numberOfLines={1}>
+                      {strings.favorite || 'Thích'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.swipeBtn, { backgroundColor: colors.buttonBg }]}>
+                    <Ionicons name="library-outline" size={18} color={colors.buttonText} />
+                    <Text style={[styles.swipeText, { color: colors.buttonText }]} numberOfLines={1}>
+                      {strings.borrow || 'Mượn'}
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              );
+            };
 
-      {/* Pagination */}
-      <View style={styles.paginationRow}>
-        <TouchableOpacity
-          style={[
-            styles.pageIconBtn,
-            { borderColor: colors.inputBorder, backgroundColor: colors.cardBg, opacity: page <= 1 ? 0.5 : 1 },
-          ]}
-          disabled={page <= 1}
-          onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
-        >
-          <Ionicons name="chevron-back" size={18} color={colors.text} />
-        </TouchableOpacity>
+            return (
+              <Swipeable
+                key={b.title}
+                renderRightActions={renderRightActions}
+                friction={2}
+                overshootFriction={6}
+                rightThreshold={32}
+                enableTrackpadTwoFingerGesture
+                onSwipeableOpen={(direction, ref) => {
+                  if (openRowRef.current && openRowRef.current !== ref) {
+                    openRowRef.current.close();
+                  }
+                  openRowRef.current = ref;
+                }}
+                onSwipeableClose={(ref) => {
+                  if (openRowRef.current === ref) {
+                    openRowRef.current = null;
+                  }
+                }}
+              >
+                <TouchableOpacity
+                  style={[styles.bookRow, { borderColor: colors.inputBorder }]}
+                  activeOpacity={0.7}
+                  onPress={() => onNavigate?.('bookDetail')}
+                >
+                  <View style={[styles.cover, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                    <Ionicons name="book-outline" size={22} color={colors.buttonBg} />
+                  </View>
+                  <View style={styles.bookInfo}>
+                    <Text style={[styles.bookTitle, { color: colors.text }]} numberOfLines={2}>
+                      {b.title}
+                    </Text>
+                    <Text style={[styles.bookMeta, { color: colors.muted }]} numberOfLines={1}>
+                      {b.author}
+                    </Text>
+                    <Text style={[styles.bookMeta, { color: b.status === 'available' ? '#2ecc71' : colors.muted }]}>
+                      {b.status === 'available' ? (strings.available || 'Có sẵn') : strings.borrowed || 'Đã mượn'}
+                    </Text>
+                    {b.due && (
+                      <Text style={[styles.bookMeta, { color: colors.muted }]}>
+                        {strings.due || 'Hạn'}: {b.due}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </Swipeable>
+            );
+          })}
 
-        <View style={[styles.pageInfoPill, { backgroundColor: colors.cardBg, borderColor: colors.inputBorder }]}>
-          <Text style={[styles.pageInfoText, { color: colors.text }]}>
-            {strings.page || 'Trang'} {page}/{totalPages}
-          </Text>
+          <View style={styles.paginationSpacer} />
+
+          {/* Pagination */}
+          <View style={styles.paginationRow}>
+            <TouchableOpacity
+              style={[
+                styles.pageIconBtn,
+                { borderColor: colors.inputBorder, backgroundColor: colors.cardBg, opacity: page <= 1 ? 0.5 : 1 },
+              ]}
+              disabled={page <= 1}
+              onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            >
+              <Ionicons name="chevron-back" size={18} color={colors.text} />
+            </TouchableOpacity>
+
+            <View style={[styles.pageInfoPill, { backgroundColor: colors.cardBg, borderColor: colors.inputBorder }]}>
+              <Text style={[styles.pageInfoText, { color: colors.text }]}>
+                {strings.page || 'Trang'} {page}/{totalPages}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.pageIconBtn,
+                { borderColor: colors.inputBorder, backgroundColor: colors.cardBg, opacity: page >= totalPages ? 0.5 : 1 },
+              ]}
+              disabled={page >= totalPages}
+              onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            >
+              <Ionicons name="chevron-forward" size={18} color={colors.text} />
+            </TouchableOpacity>
+          </View>
         </View>
-
-        <TouchableOpacity
-          style={[
-            styles.pageIconBtn,
-            { borderColor: colors.inputBorder, backgroundColor: colors.cardBg, opacity: page >= totalPages ? 0.5 : 1 },
-          ]}
-          disabled={page >= totalPages}
-          onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-        >
-          <Ionicons name="chevron-forward" size={18} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       <BottomNav
         activeKey="library"
@@ -228,8 +288,15 @@ const createStyles = (colors) =>
     },
     listContent: {
       paddingHorizontal: 14,
-      paddingBottom: 90,
+      paddingBottom: 120,
       gap: 12,
+      flexGrow: 1,
+    },
+    listAndFooter: {
+      flexGrow: 1,
+    },
+    paginationSpacer: {
+      flexGrow: 1,
     },
     paginationRow: {
       flexDirection: 'row',
@@ -264,6 +331,23 @@ const createStyles = (colors) =>
     pageInfoText: {
       fontSize: 13,
       fontWeight: '700',
+    },
+    swipeActions: {
+      width: 200,
+      flexDirection: 'row',
+      height: '100%',
+    },
+    swipeBtn: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      paddingHorizontal: 6,
+    },
+    swipeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      textAlign: 'center',
     },
     bookRow: {
       flexDirection: 'row',
