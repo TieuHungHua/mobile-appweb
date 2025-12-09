@@ -228,7 +228,7 @@ export default function BooksScreen({ theme, lang, strings, colors, onNavigate, 
           // library: stay on this screen
         }}
         colors={colors}
-        strings={{ ...strings, home: 'Home', library: strings.books || 'Sách', chats: 'Chats', settings: 'Settings' }}
+        strings={{ ...strings, home: 'Home', library: 'Library', chats: 'Chats', settings: 'Settings' }}
       />
     </View>
   );

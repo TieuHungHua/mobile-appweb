@@ -58,7 +58,11 @@ export default function SettingsScreen({ theme, lang, strings, colors, onNavigat
             <Ionicons name="chevron-forward" size={20} color={colors.muted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            activeOpacity={0.7}
+            onPress={() => onNavigate?.('changePassword')}
+          >
             <Text style={[styles.settingLabel, { color: colors.text }]}>
               {strings.changePassword || 'Thay đổi mật khẩu'}
             </Text>
@@ -120,12 +124,12 @@ export default function SettingsScreen({ theme, lang, strings, colors, onNavigat
         activeKey="settings"
         onChange={(key) => {
           if (key === 'home') onNavigate?.('home');
-          if (key === 'library') onNavigate?.('books');
+          if (key === 'library') onNavigate?.('library');
           if (key === 'chats') onNavigate?.('chats');
           // settings: stay on this screen
         }}
         colors={colors}
-        strings={{ ...strings, home: 'Home', library: strings.books || 'Sách', chats: 'Chats', settings: strings.settings || 'Settings' }}
+        strings={{ ...strings, home: 'Home', library: 'Library', chats: 'Chats', settings: strings.settings || 'Settings' }}
       />
     </View>
   );

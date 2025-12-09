@@ -211,7 +211,7 @@ export default function ChatScreen({ theme, strings, colors, onNavigate }) {
                     if (key === 'settings') onNavigate?.('settings');
                 }}
                 colors={colors}
-                strings={{ ...strings, home: 'Home', library: strings?.books || 'Sách', chats: 'Chats', settings: 'Settings' }}
+                strings={{ ...strings, home: 'Home', library: 'Library', chats: 'Chats', settings: 'Settings' }}
             />
         </View>
     );

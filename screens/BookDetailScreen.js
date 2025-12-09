@@ -187,7 +187,7 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
           if (key === 'chats') onNavigate?.('chats');
         }}
         colors={colors}
-        strings={{ ...strings, home: 'Home', library: strings.books || 'Sách', chats: 'Chats', settings: 'Settings' }}
+        strings={{ ...strings, home: 'Home', library: 'Library', chats: 'Chats', settings: 'Settings' }}
       />
 
       {/* Borrow bottom sheet */}
