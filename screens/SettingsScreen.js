@@ -97,7 +97,11 @@ export default function SettingsScreen({ theme, lang, strings, colors, onNavigat
           <View style={[styles.divider, { backgroundColor: colors.inputBorder }]} />
 
           {/* General Section */}
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            activeOpacity={0.7}
+            onPress={() => onNavigate?.('myBookshelf')}
+          >
             <Text style={[styles.settingLabel, { color: '#9b59b6' }]}>
               {strings.myBookshelf || 'Tủ sách của tôi'}
             </Text>
