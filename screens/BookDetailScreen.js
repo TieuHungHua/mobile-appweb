@@ -45,7 +45,7 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
       onMoveShouldSetPanResponder: (evt, gestureState) => Math.abs(gestureState.dx) > 12,
       onPanResponderRelease: (evt, gestureState) => {
         if (gestureState.dx > 50) {
-          onNavigate?.('library');
+          onNavigate?.('back');
         }
       },
     })
@@ -69,7 +69,7 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
 
       {/* Header */}
       <View style={[styles.topBar, { backgroundColor: colors.headerBg }]}>
-        <TouchableOpacity onPress={() => onNavigate?.('library')} style={styles.iconBtn}>
+        <TouchableOpacity onPress={() => onNavigate?.('back')} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={22} color={colors.headerText} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.headerText }]} numberOfLines={1}>
@@ -182,7 +182,7 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
         activeKey="library"
         onChange={(key) => {
           if (key === 'home') onNavigate?.('home');
-          if (key === 'library') onNavigate?.('library');
+          if (key === 'library') onNavigate?.('back');
           if (key === 'settings') onNavigate?.('settings');
           if (key === 'chats') onNavigate?.('chats');
         }}

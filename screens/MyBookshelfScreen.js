@@ -76,11 +76,21 @@ const mockSavedBooks = [
   },
 ];
 
-export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavigate }) {
+export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavigate, activeTab: propActiveTab, onTabChange }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [activeTab, setActiveTab] = useState('borrowed'); // 'borrowed', 'favorites', 'saved'
+  const [activeTab, setActiveTab] = useState(propActiveTab || 'borrowed'); // 'borrowed', 'favorites', 'saved'
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+
+  // Sync with prop if provided
+  const currentTab = propActiveTab !== undefined ? propActiveTab : activeTab;
+  const handleTabChange = (tab) => {
+    if (onTabChange) {
+      onTabChange(tab);
+    } else {
+      setActiveTab(tab);
+    }
+  };
 
   // Pan responder for swipe back gesture
   const panResponder = useRef(
@@ -98,11 +108,11 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
 
   const getFilteredBooks = () => {
     let books = [];
-    if (activeTab === 'borrowed') {
+    if (currentTab === 'borrowed') {
       books = mockBorrowedBooks;
-    } else if (activeTab === 'favorites') {
+    } else if (currentTab === 'favorites') {
       books = mockFavoriteBooks;
-    } else if (activeTab === 'saved') {
+    } else if (currentTab === 'saved') {
       books = mockSavedBooks;
     }
 
@@ -117,7 +127,7 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
 
   const getBorrowedBooksGrouped = () => {
     const books = getFilteredBooks();
-    if (activeTab !== 'borrowed') return { active: [], expired: [] };
+    if (currentTab !== 'borrowed') return { active: [], expired: [] };
 
     const active = books.filter((book) => book.status !== 'expired' && book.daysLeft >= 0);
     const expired = books.filter((book) => book.status === 'expired' || book.daysLeft < 0);
@@ -131,7 +141,7 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
   };
 
   const renderBookItem = (book) => {
-    if (activeTab === 'borrowed') {
+    if (currentTab === 'borrowed') {
       const isExpired = book.status === 'expired' || book.daysLeft < 0;
       const statusColor = isExpired ? '#e74c3c' : book.daysLeft <= 3 ? '#f39c12' : '#2ecc71';
       const statusText = isExpired
@@ -239,53 +249,53 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
       {/* Tabs */}
       <View style={[styles.tabsContainer, { backgroundColor: colors.background }]}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'borrowed' && styles.activeTab]}
-          onPress={() => setActiveTab('borrowed')}
+          style={[styles.tab, currentTab === 'borrowed' && styles.activeTab]}
+          onPress={() => handleTabChange('borrowed')}
           activeOpacity={0.7}
         >
           <Text
             style={[
               styles.tabText,
-              { color: activeTab === 'borrowed' ? colors.buttonBg : colors.muted },
+              { color: currentTab === 'borrowed' ? colors.buttonBg : colors.muted },
             ]}
           >
             {strings.borrowed || 'Đã mượn'}
           </Text>
-          {activeTab === 'borrowed' && (
+          {currentTab === 'borrowed' && (
             <View style={[styles.tabIndicator, { backgroundColor: colors.buttonBg }]} />
           )}
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'favorites' && styles.activeTab]}
-          onPress={() => setActiveTab('favorites')}
+          style={[styles.tab, currentTab === 'favorites' && styles.activeTab]}
+          onPress={() => handleTabChange('favorites')}
           activeOpacity={0.7}
         >
           <Text
             style={[
               styles.tabText,
-              { color: activeTab === 'favorites' ? colors.buttonBg : colors.muted },
+              { color: currentTab === 'favorites' ? colors.buttonBg : colors.muted },
             ]}
           >
             {strings.favorites || 'Yêu thích'}
           </Text>
-          {activeTab === 'favorites' && (
+          {currentTab === 'favorites' && (
             <View style={[styles.tabIndicator, { backgroundColor: colors.buttonBg }]} />
           )}
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'saved' && styles.activeTab]}
-          onPress={() => setActiveTab('saved')}
+          style={[styles.tab, currentTab === 'saved' && styles.activeTab]}
+          onPress={() => handleTabChange('saved')}
           activeOpacity={0.7}
         >
           <Text
             style={[
               styles.tabText,
-              { color: activeTab === 'saved' ? colors.buttonBg : colors.muted },
+              { color: currentTab === 'saved' ? colors.buttonBg : colors.muted },
             ]}
           >
             {strings.saved || 'Đã lưu'}
           </Text>
-          {activeTab === 'saved' && (
+          {currentTab === 'saved' && (
             <View style={[styles.tabIndicator, { backgroundColor: colors.buttonBg }]} />
           )}
         </TouchableOpacity>
@@ -322,9 +332,9 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
           <View style={styles.emptyState}>
             <Ionicons name="book-outline" size={64} color={colors.muted} />
             <Text style={[styles.emptyText, { color: colors.muted }]}>
-              {activeTab === 'borrowed'
+              {currentTab === 'borrowed'
                 ? strings.noBorrowedBooks || 'Chưa có sách đã mượn'
-                : activeTab === 'favorites'
+                : currentTab === 'favorites'
                 ? strings.noFavoriteBooks || 'Chưa có sách yêu thích'
                 : strings.noSavedBooks || 'Chưa có sách đã lưu'}
             </Text>

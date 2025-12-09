@@ -15,6 +15,8 @@ import { themes, i18n } from './utils/theme';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('login'); // 'login', 'register', 'forgotPassword', 'home', 'books', 'bookDetail', 'chats', 'settings', 'editInformation', 'changePassword', 'myBookshelf'
+  const [previousScreen, setPreviousScreen] = useState(null); // Track previous screen for navigation back
+  const [myBookshelfActiveTab, setMyBookshelfActiveTab] = useState('borrowed'); // Track active tab in MyBookshelfScreen
   const [theme, setTheme] = useState('light'); // 'light' | 'dark'
   const [lang, setLang] = useState('vi'); // 'vi' | 'en'
   const [booksSearch, setBooksSearch] = useState('');
@@ -35,11 +37,26 @@ export default function App() {
         strings={strings}
         colors={colors}
         onNavigate={(key) => {
-          if (key === 'library') setCurrentScreen('books');
-          else if (key === 'home') setCurrentScreen('home');
-          else if (key === 'settings') setCurrentScreen('settings');
-          else if (key === 'chats') setCurrentScreen('chats');
-          else setCurrentScreen(key);
+          if (key === 'back' || key === 'library') {
+            // Navigate back to previous screen
+            setCurrentScreen(previousScreen || 'books');
+            setPreviousScreen(null);
+          } else if (key === 'home') {
+            setCurrentScreen('home');
+            setPreviousScreen(null);
+          } else if (key === 'settings') {
+            setCurrentScreen('settings');
+            setPreviousScreen(null);
+          } else if (key === 'chats') {
+            setCurrentScreen('chats');
+            setPreviousScreen(null);
+          } else if (key === 'myBookshelf') {
+            setCurrentScreen('myBookshelf');
+            setPreviousScreen(null);
+          } else {
+            setCurrentScreen(key);
+            setPreviousScreen(null);
+          }
         }}
       />
     );
@@ -107,9 +124,17 @@ export default function App() {
         lang={lang}
         strings={strings}
         colors={colors}
+        activeTab={myBookshelfActiveTab}
+        onTabChange={setMyBookshelfActiveTab}
         onNavigate={(key) => {
-          if (key === 'settings') setCurrentScreen('settings');
-          if (key === 'bookDetail') setCurrentScreen('bookDetail');
+          if (key === 'settings') {
+            setCurrentScreen('settings');
+            setPreviousScreen(null);
+          }
+          if (key === 'bookDetail') {
+            setPreviousScreen('myBookshelf');
+            setCurrentScreen('bookDetail');
+          }
         }}
       />
     );
@@ -123,10 +148,22 @@ export default function App() {
         searchValue={booksSearch}
         onChangeSearch={setBooksSearch}
         onNavigate={(key) => {
-          if (key === 'home') setCurrentScreen('home');
-          if (key === 'settings') setCurrentScreen('settings');
-          if (key === 'bookDetail') setCurrentScreen('bookDetail');
-          if (key === 'chats') setCurrentScreen('chats');
+          if (key === 'home') {
+            setCurrentScreen('home');
+            setPreviousScreen(null);
+          }
+          if (key === 'settings') {
+            setCurrentScreen('settings');
+            setPreviousScreen(null);
+          }
+          if (key === 'bookDetail') {
+            setPreviousScreen('books');
+            setCurrentScreen('bookDetail');
+          }
+          if (key === 'chats') {
+            setCurrentScreen('chats');
+            setPreviousScreen(null);
+          }
         }}
       />
     );
