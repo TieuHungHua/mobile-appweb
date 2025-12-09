@@ -7,10 +7,11 @@ import HomeScreen from './screens/HomeScreen';
 import BooksScreen from './screens/BooksScreen';
 import BookDetailScreen from './screens/BookDetailScreen';
 import ChatScreen from './screens/ChatScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import { themes, i18n } from './utils/theme';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState('login'); // 'login', 'register', 'forgotPassword', 'home', 'books', 'bookDetail', 'chats'
+  const [currentScreen, setCurrentScreen] = useState('login'); // 'login', 'register', 'forgotPassword', 'home', 'books', 'bookDetail', 'chats', 'settings'
   const [theme, setTheme] = useState('light'); // 'light' | 'dark'
   const [lang, setLang] = useState('vi'); // 'vi' | 'en'
   const [booksSearch, setBooksSearch] = useState('');
@@ -30,7 +31,13 @@ export default function App() {
         lang={lang}
         strings={strings}
         colors={colors}
-        onNavigate={(key) => setCurrentScreen(key === 'library' ? 'books' : key)}
+        onNavigate={(key) => {
+          if (key === 'library') setCurrentScreen('books');
+          else if (key === 'home') setCurrentScreen('home');
+          else if (key === 'settings') setCurrentScreen('settings');
+          else if (key === 'chats') setCurrentScreen('chats');
+          else setCurrentScreen(key);
+        }}
       />
     );
   } else if (currentScreen === 'chats') {
@@ -43,7 +50,22 @@ export default function App() {
         onNavigate={(key) => {
           if (key === 'home') setCurrentScreen('home');
           if (key === 'library') setCurrentScreen('books');
-          if (key === 'settings') setCurrentScreen('login');
+          if (key === 'settings') setCurrentScreen('settings');
+        }}
+      />
+    );
+  } else if (currentScreen === 'settings') {
+    screen = (
+      <SettingsScreen
+        theme={theme}
+        lang={lang}
+        strings={strings}
+        colors={colors}
+        onNavigate={(key) => {
+          if (key === 'home') setCurrentScreen('home');
+          if (key === 'library') setCurrentScreen('books');
+          if (key === 'chats') setCurrentScreen('chats');
+          if (key === 'login') setCurrentScreen('login');
         }}
       />
     );
@@ -58,7 +80,7 @@ export default function App() {
         onChangeSearch={setBooksSearch}
         onNavigate={(key) => {
           if (key === 'home') setCurrentScreen('home');
-          if (key === 'settings') setCurrentScreen('login');
+          if (key === 'settings') setCurrentScreen('settings');
           if (key === 'bookDetail') setCurrentScreen('bookDetail');
           if (key === 'chats') setCurrentScreen('chats');
         }}
@@ -74,7 +96,7 @@ export default function App() {
         onToggleTheme={toggleTheme}
         onSelectLanguage={selectLanguage}
         onNavigate={(key) => {
-          if (key === 'settings') setCurrentScreen('login');
+          if (key === 'settings') setCurrentScreen('settings');
           if (key === 'books') setCurrentScreen('books');
           if (key === 'chats') setCurrentScreen('chats');
         }}
