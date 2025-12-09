@@ -224,6 +224,7 @@ export default function BooksScreen({ theme, lang, strings, colors, onNavigate, 
         onChange={(key) => {
           if (key === 'home') onNavigate?.('home');
           if (key === 'settings') onNavigate?.('settings');
+          if (key === 'chats') onNavigate?.('chats');
           // library: stay on this screen
         }}
         colors={colors}

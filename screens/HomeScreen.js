@@ -215,6 +215,7 @@ export default function HomeScreen({ theme, lang, strings, colors, onNavigate, o
                 onChange={(key) => {
                     if (key === 'settings') onNavigate?.('settings');
                     if (key === 'library') onNavigate?.('books');
+                    if (key === 'chats') onNavigate?.('chats');
                 }}
                 colors={colors}
                 strings={{ ...strings, home: 'Home', library: 'Library', chats: 'Chats', settings: 'Settings' }}

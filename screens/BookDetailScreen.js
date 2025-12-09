@@ -184,6 +184,7 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
           if (key === 'home') onNavigate?.('home');
           if (key === 'library') onNavigate?.('library');
           if (key === 'settings') onNavigate?.('settings');
+          if (key === 'chats') onNavigate?.('chats');
         }}
         colors={colors}
         strings={{ ...strings, home: 'Home', library: strings.books || 'Sách', chats: 'Chats', settings: 'Settings' }}
