@@ -47,7 +47,11 @@ export default function SettingsScreen({ theme, lang, strings, colors, onNavigat
             {strings.accountSettings || 'Thiết lập tài khoản'}
           </Text>
 
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            activeOpacity={0.7}
+            onPress={() => onNavigate?.('editInformation')}
+          >
             <Text style={[styles.settingLabel, { color: colors.text }]}>
               {strings.editInformation || 'Chỉnh sửa thông tin'}
             </Text>

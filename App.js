@@ -8,10 +8,11 @@ import BooksScreen from './screens/BooksScreen';
 import BookDetailScreen from './screens/BookDetailScreen';
 import ChatScreen from './screens/ChatScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import EditInformationScreen from './screens/EditInformationScreen';
 import { themes, i18n } from './utils/theme';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState('login'); // 'login', 'register', 'forgotPassword', 'home', 'books', 'bookDetail', 'chats', 'settings'
+  const [currentScreen, setCurrentScreen] = useState('login'); // 'login', 'register', 'forgotPassword', 'home', 'books', 'bookDetail', 'chats', 'settings', 'editInformation'
   const [theme, setTheme] = useState('light'); // 'light' | 'dark'
   const [lang, setLang] = useState('vi'); // 'vi' | 'en'
   const [booksSearch, setBooksSearch] = useState('');
@@ -66,6 +67,19 @@ export default function App() {
           if (key === 'library') setCurrentScreen('books');
           if (key === 'chats') setCurrentScreen('chats');
           if (key === 'login') setCurrentScreen('login');
+          if (key === 'editInformation') setCurrentScreen('editInformation');
+        }}
+      />
+    );
+  } else if (currentScreen === 'editInformation') {
+    screen = (
+      <EditInformationScreen
+        theme={theme}
+        lang={lang}
+        strings={strings}
+        colors={colors}
+        onNavigate={(key) => {
+          if (key === 'settings') setCurrentScreen('settings');
         }}
       />
     );
