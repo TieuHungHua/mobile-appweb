@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
-import { useMemo, useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Platform, LayoutAnimation, UIManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav';
 
@@ -31,10 +31,16 @@ const mockBooks = [
   },
 ];
 
-export default function BooksScreen({ theme, lang, strings, colors, onNavigate }) {
+export default function BooksScreen({ theme, lang, strings, colors, onNavigate, searchValue = '', onChangeSearch }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [search, setSearch] = useState('');
+  const search = searchValue;
   const [tab, setTab] = useState('all'); // all | category | available
+
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
 
   const filtered = mockBooks.filter((b) => {
     if (tab === 'available' && b.status !== 'available') return false;
@@ -44,6 +50,10 @@ export default function BooksScreen({ theme, lang, strings, colors, onNavigate }
     }
     return true;
   });
+
+  useEffect(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  }, [tab, search]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -56,7 +66,7 @@ export default function BooksScreen({ theme, lang, strings, colors, onNavigate }
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
             value={search}
-            onChangeText={setSearch}
+            onChangeText={onChangeSearch}
             placeholder={strings.search || 'Search'}
             placeholderTextColor={colors.placeholder}
             returnKeyType="search"

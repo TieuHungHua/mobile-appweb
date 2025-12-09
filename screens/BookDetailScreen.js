@@ -25,9 +25,9 @@ const bookMock = {
 };
 
 const detailSections = [
-    { title: 'Danh mục/Thể loại', content: 'Tiểu thuyết lịch sử, Hư cấu, Văn học hiện đại' },
-    { title: 'Mô tả', content: 'Một cô gái mù người Pháp và một cậu bé người Đức trong Thế chiến II.' },
-    { title: 'Thông tin chung', content: '• NXB: Scribner\n• Năm XB: 2014\n• Trang: 531' },
+  { title: 'Danh mục/Thể loại', content: 'Tiểu thuyết lịch sử, Hư cấu, Văn học hiện đại' },
+  { title: 'Mô tả', content: 'Một cô gái mù người Pháp và một cậu bé người Đức trong Thế chiến II.' },
+  { title: 'Thông tin chung', content: '• NXB: Scribner\n• Năm XB: 2014\n• Trang: 531' },
 ];
 
 export default function BookDetailScreen({ theme, lang, strings, colors, onNavigate }) {
@@ -36,6 +36,9 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
   const [recentSearches, setRecentSearches] = useState(['lịch sử tìm kiếm', 'Harry Potter', 'Kinh tế', 'Công nghệ AI']);
   const [openSections, setOpenSections] = useState([]);
+  const [isBorrowed, setIsBorrowed] = useState(false);
+  const [borrowDue, setBorrowDue] = useState(null);
+  const [showBorrowSheet, setShowBorrowSheet] = useState(false);
 
   const basePanResponder = useRef(
     PanResponder.create({
@@ -91,13 +94,32 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
           <Text style={[styles.bookTitle, { color: colors.text }]}>{bookMock.title}</Text>
           <Text style={[styles.bookAuthor, { color: colors.muted }]}>{bookMock.author}</Text>
           <View style={styles.tagRow}>
-            <View style={[styles.tag, { backgroundColor: '#e8f5e9', borderColor: '#2ecc71' }]}>
-              <Text style={[styles.tagText, { color: '#2ecc71' }]}>{strings.available || 'Available'}</Text>
+            <View
+              style={[
+                styles.tag,
+                isBorrowed
+                  ? { backgroundColor: '#fef4e6', borderColor: '#f39c12' }
+                  : { backgroundColor: '#e8f5e9', borderColor: '#2ecc71' },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tagText,
+                  { color: isBorrowed ? '#f39c12' : '#2ecc71' },
+                ]}
+              >
+                {isBorrowed ? strings.borrowed || 'Đã mượn' : strings.available || 'Available'}
+              </Text>
             </View>
             <View style={[styles.tag, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
               <Text style={[styles.tagText, { color: colors.text }]}>{bookMock.copies}</Text>
             </View>
           </View>
+          {isBorrowed && borrowDue && (
+            <Text style={[styles.bookMetaCenter, { color: colors.muted }]}>
+              {strings.due || 'Hạn'}: {borrowDue}
+            </Text>
+          )}
           <View style={styles.tagRow}>
             {bookMock.tags.map((t) => (
               <View key={t} style={[styles.tag, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
@@ -109,9 +131,18 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
 
         {/* Actions */}
         <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.actionChip, { backgroundColor: colors.buttonBg }]}>
-            <Ionicons name="library-outline" size={16} color={colors.buttonText} />
-            <Text style={[styles.actionText, { color: colors.buttonText }]}>{strings.borrow || 'Mượn'}</Text>
+          <TouchableOpacity
+            style={[
+              styles.actionChip,
+              { backgroundColor: isBorrowed ? colors.inputBg : colors.buttonBg, borderColor: colors.inputBorder, borderWidth: isBorrowed ? 1 : 0 },
+            ]}
+            disabled={isBorrowed}
+            onPress={() => setShowBorrowSheet(true)}
+          >
+            <Ionicons name="library-outline" size={16} color={isBorrowed ? colors.text : colors.buttonText} />
+            <Text style={[styles.actionText, { color: isBorrowed ? colors.text : colors.buttonText }]}>
+              {isBorrowed ? strings.borrowed || 'Đã mượn' : strings.borrow || 'Mượn'}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.actionChip, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, borderWidth: 1 }]}>
             <Ionicons name="share-outline" size={16} color={colors.text} />
@@ -157,6 +188,36 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
         colors={colors}
         strings={{ ...strings, home: 'Home', library: strings.books || 'Sách', chats: 'Chats', settings: 'Settings' }}
       />
+
+      {/* Borrow bottom sheet */}
+      {showBorrowSheet && (
+        <View style={[styles.sheetOverlay, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
+          <View style={[styles.sheetCard, { backgroundColor: colors.cardBg, borderColor: colors.inputBorder }]}>
+            <Text style={[styles.sheetTitle, { color: colors.text }]}>{strings.borrow || 'Mượn sách'}</Text>
+            <Text style={[styles.sheetText, { color: colors.muted }]}>
+              {strings.confirmBorrow || 'Bạn muốn mượn quyển sách này?'}
+            </Text>
+            <View style={styles.sheetActions}>
+              <TouchableOpacity
+                style={[styles.sheetBtn, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, borderWidth: 1 }]}
+                onPress={() => setShowBorrowSheet(false)}
+              >
+                <Text style={[styles.sheetBtnText, { color: colors.text }]}>{strings.cancel || 'Hủy'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sheetBtn, { backgroundColor: colors.buttonBg }]}
+                onPress={() => {
+                  setIsBorrowed(true);
+                  setBorrowDue('06/12/2025');
+                  setShowBorrowSheet(false);
+                }}
+              >
+                <Text style={[styles.sheetBtnText, { color: colors.buttonText }]}>{strings.confirm || 'Xác nhận'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Full-screen search overlay (reuse pattern from Home) */}
       {showSearchOverlay && (
@@ -390,6 +451,62 @@ const createStyles = (colors) =>
       fontSize: 13,
       fontWeight: '500',
       lineHeight: 18,
+    },
+    bookMetaCenter: {
+      fontSize: 12,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    sheetOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 35,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingBottom: 0,
+    },
+    sheetCard: {
+      borderRadius: 14,
+      borderWidth: 1,
+      padding: 16,
+      gap: 10,
+      shadowColor: '#000',
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 6,
+      maxWidth: '92%',
+      alignSelf: 'center',
+    },
+    sheetTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    sheetText: {
+      fontSize: 13,
+      fontWeight: '500',
+      lineHeight: 18,
+    },
+    sheetActions: {
+      flexDirection: 'row',
+      gap: 10,
+      justifyContent: 'flex-end',
+      marginTop: 4,
+    },
+    sheetBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+      minWidth: 96,
+      alignItems: 'center',
+    },
+    sheetBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
     },
     overlay: {
       position: 'absolute',

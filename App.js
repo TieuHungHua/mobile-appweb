@@ -11,6 +11,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState('login'); // 'login', 'register', 'forgotPassword', 'home', 'books', 'bookDetail'
   const [theme, setTheme] = useState('light'); // 'light' | 'dark'
   const [lang, setLang] = useState('vi'); // 'vi' | 'en'
+  const [booksSearch, setBooksSearch] = useState('');
 
   const strings = i18n[lang];
   const colors = useMemo(() => themes[theme], [theme]);
@@ -37,6 +38,8 @@ export default function App() {
         lang={lang}
         strings={strings}
         colors={colors}
+        searchValue={booksSearch}
+        onChangeSearch={setBooksSearch}
         onNavigate={(key) => {
           if (key === 'home') setCurrentScreen('home');
           if (key === 'settings') setCurrentScreen('login');

@@ -95,7 +95,7 @@ export default function HomeScreen({ theme, lang, strings, colors, onNavigate, o
                 <View style={[styles.quickCard, { backgroundColor: colors.cardBg, borderColor: colors.inputBorder }]}>
                     <View style={styles.quickRow}>
                         {mockQuickActions.map((qa) => (
-                            <TouchableOpacity key={qa.label} style={styles.quickItem} activeOpacity={0.8}>
+                            <TouchableOpacity key={qa.labelKey} style={styles.quickItem} activeOpacity={0.8}>
                                 <View style={[styles.quickIcon, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                                     <Ionicons name={qa.icon} size={18} color={colors.buttonBg} />
                                 </View>
