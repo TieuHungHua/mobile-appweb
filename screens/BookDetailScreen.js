@@ -30,7 +30,7 @@ const detailSections = [
   { title: 'Thông tin chung', content: '• NXB: Scribner\n• Năm XB: 2014\n• Trang: 531' },
 ];
 
-export default function BookDetailScreen({ theme, lang, strings, colors, onNavigate }) {
+export default function BookDetailScreen({ theme, lang, strings, colors, onNavigate, hideBottomNav = false }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [search, setSearch] = useState('');
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
@@ -178,17 +178,19 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
         </View>
       </ScrollView>
 
-      <BottomNav
-        activeKey="library"
-        onChange={(key) => {
-          if (key === 'home') onNavigate?.('home');
-          if (key === 'library') onNavigate?.('back');
-          if (key === 'settings') onNavigate?.('settings');
-          if (key === 'chats') onNavigate?.('chats');
-        }}
-        colors={colors}
-        strings={{ ...strings, home: 'Home', library: 'Library', chats: 'Chats', settings: 'Settings' }}
-      />
+      {!hideBottomNav && (
+        <BottomNav
+          activeKey="library"
+          onChange={(key) => {
+            if (key === 'home') onNavigate?.('home');
+            if (key === 'library') onNavigate?.('back');
+            if (key === 'settings') onNavigate?.('settings');
+            if (key === 'chats') onNavigate?.('chats');
+          }}
+          colors={colors}
+          strings={{ ...strings, home: 'Home', library: 'Library', chats: 'Chats', settings: 'Settings' }}
+        />
+      )}
 
       {/* Borrow bottom sheet */}
       {showBorrowSheet && (

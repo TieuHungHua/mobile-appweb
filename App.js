@@ -36,6 +36,7 @@ export default function App() {
         lang={lang}
         strings={strings}
         colors={colors}
+        hideBottomNav={previousScreen === 'myBookshelf'}
         onNavigate={(key) => {
           if (key === 'back' || key === 'library') {
             // Navigate back to previous screen
