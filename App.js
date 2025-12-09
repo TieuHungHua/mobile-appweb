@@ -11,10 +11,12 @@ import SettingsScreen from './screens/SettingsScreen';
 import EditInformationScreen from './screens/EditInformationScreen';
 import ChangePasswordScreen from './screens/ChangePasswordScreen';
 import MyBookshelfScreen from './screens/MyBookshelfScreen';
+import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen';
+import AboutUsScreen from './screens/AboutUsScreen';
 import { themes, i18n } from './utils/theme';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState('login'); // 'login', 'register', 'forgotPassword', 'home', 'books', 'bookDetail', 'chats', 'settings', 'editInformation', 'changePassword', 'myBookshelf'
+  const [currentScreen, setCurrentScreen] = useState('login'); // 'login', 'register', 'forgotPassword', 'home', 'books', 'bookDetail', 'chats', 'settings', 'editInformation', 'changePassword', 'myBookshelf', 'privacyPolicy', 'aboutUs'
   const [previousScreen, setPreviousScreen] = useState(null); // Track previous screen for navigation back
   const [myBookshelfActiveTab, setMyBookshelfActiveTab] = useState('borrowed'); // Track active tab in MyBookshelfScreen
   const [theme, setTheme] = useState('light'); // 'light' | 'dark'
@@ -91,6 +93,8 @@ export default function App() {
           if (key === 'editInformation') setCurrentScreen('editInformation');
           if (key === 'changePassword') setCurrentScreen('changePassword');
           if (key === 'myBookshelf') setCurrentScreen('myBookshelf');
+          if (key === 'privacyPolicy') setCurrentScreen('privacyPolicy');
+          if (key === 'aboutUs') setCurrentScreen('aboutUs');
         }}
       />
     );
@@ -136,6 +140,30 @@ export default function App() {
             setPreviousScreen('myBookshelf');
             setCurrentScreen('bookDetail');
           }
+        }}
+      />
+    );
+  } else if (currentScreen === 'privacyPolicy') {
+    screen = (
+      <PrivacyPolicyScreen
+        theme={theme}
+        lang={lang}
+        strings={strings}
+        colors={colors}
+        onNavigate={(key) => {
+          if (key === 'settings') setCurrentScreen('settings');
+        }}
+      />
+    );
+  } else if (currentScreen === 'aboutUs') {
+    screen = (
+      <AboutUsScreen
+        theme={theme}
+        lang={lang}
+        strings={strings}
+        colors={colors}
+        onNavigate={(key) => {
+          if (key === 'settings') setCurrentScreen('settings');
         }}
       />
     );

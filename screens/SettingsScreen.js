@@ -108,14 +108,22 @@ export default function SettingsScreen({ theme, lang, strings, colors, onNavigat
             <Ionicons name="chevron-forward" size={20} color={colors.muted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            activeOpacity={0.7}
+            onPress={() => onNavigate?.('aboutUs')}
+          >
             <Text style={[styles.settingLabel, { color: colors.text }]}>
               {strings.aboutUs || 'Về chúng tôi'}
             </Text>
             <Ionicons name="chevron-forward" size={20} color={colors.muted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.settingItem}
+            activeOpacity={0.7}
+            onPress={() => onNavigate?.('privacyPolicy')}
+          >
             <Text style={[styles.settingLabel, { color: colors.text }]}>
               {strings.privacyPolicy || 'Chính sách bảo mật'}
             </Text>
