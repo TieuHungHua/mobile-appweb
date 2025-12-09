@@ -213,9 +213,8 @@ export default function HomeScreen({ theme, lang, strings, colors, onNavigate, o
             <BottomNav
                 activeKey="home"
                 onChange={(key) => {
-                    if (key === 'settings') {
-                        onNavigate?.('settings');
-                    }
+                    if (key === 'settings') onNavigate?.('settings');
+                    if (key === 'library') onNavigate?.('books');
                 }}
                 colors={colors}
                 strings={{ ...strings, home: 'Home', library: 'Library', chats: 'Chats', settings: 'Settings' }}
@@ -333,10 +332,10 @@ const createStyles = (colors) =>
         },
         searchInput: {
             flex: 1,
-            fontSize: 14,
+            fontSize: 15,
         },
         dropdownTitle: {
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: '700',
         },
         dropdownItem: {
@@ -346,7 +345,7 @@ const createStyles = (colors) =>
             paddingVertical: 6,
         },
         dropdownText: {
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: '500',
         },
         overlay: {
@@ -389,7 +388,7 @@ const createStyles = (colors) =>
         },
         overlaySearchInput: {
             flex: 1,
-            fontSize: 16,
+            fontSize: 17,
         },
         overlayList: {
             flex: 1,
@@ -421,11 +420,11 @@ const createStyles = (colors) =>
             elevation: 2,
         },
         cardTitle: {
-            fontSize: 14,
+            fontSize: 15,
             fontWeight: '700',
         },
         cardText: {
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: '500',
         },
         quickCard: {
@@ -459,7 +458,7 @@ const createStyles = (colors) =>
             borderWidth: 1,
         },
         quickLabel: {
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: '600',
         },
         statsRow: {
@@ -474,11 +473,11 @@ const createStyles = (colors) =>
             gap: 4,
         },
         statNumber: {
-            fontSize: 20,
+            fontSize: 21,
             fontWeight: '700',
         },
         statLabel: {
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: '600',
         },
         cardHeaderRow: {
@@ -498,7 +497,7 @@ const createStyles = (colors) =>
             borderRadius: 5,
         },
         legendText: {
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: '600',
         },
         chartRow: {
@@ -524,7 +523,7 @@ const createStyles = (colors) =>
             borderRadius: 4,
         },
         chartLabel: {
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: '600',
         },
         chipsRow: {
@@ -547,7 +546,7 @@ const createStyles = (colors) =>
             borderRadius: 4,
         },
         chipText: {
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: '600',
         },
         coversRow: {
@@ -567,7 +566,7 @@ const createStyles = (colors) =>
             borderWidth: 1,
         },
         coverLabel: {
-            fontSize: 11,
+            fontSize: 12,
             textAlign: 'center',
         },
     });
