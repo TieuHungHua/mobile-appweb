@@ -5,24 +5,24 @@ import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav';
 
 const mockBooks = [
-    { title: 'All The Light We Cannot See', author: 'Anthony Doerr', status: 'available', due: null },
-    { title: 'The Girl Who Drank The Moon', author: 'Kelly Barnhill', status: 'borrowed', due: '06/12/2025' },
-    { title: 'Me Before You', author: 'Jojo Moyes', status: 'available', due: null },
-    { title: 'Pax Journey Home', author: 'Sara Pennypacker', status: 'borrowed', due: '06/12/2025' },
-    { title: 'Atomic Habits', author: 'James Clear', status: 'available', due: null }, // Self-help
-    { title: 'Sapiens', author: 'Yuval Noah Harari', status: 'available', due: null }, // History
-    { title: 'The Pragmatic Programmer', author: 'Andrew Hunt', status: 'available', due: null }, // Tech
-    { title: 'Clean Code', author: 'Robert C. Martin', status: 'borrowed', due: '10/12/2025' }, // Tech
-    { title: 'Thinking, Fast and Slow', author: 'Daniel Kahneman', status: 'available', due: null }, // Psychology
-    { title: 'The Hobbit', author: 'J.R.R. Tolkien', status: 'available', due: null }, // Fantasy
-    { title: 'Dune', author: 'Frank Herbert', status: 'borrowed', due: '15/12/2025' }, // Sci-fi
-    { title: 'Educated', author: 'Tara Westover', status: 'available', due: null }, // Memoir
-    { title: 'Becoming', author: 'Michelle Obama', status: 'available', due: null }, // Biography
-    { title: 'The Silent Patient', author: 'Alex Michaelides', status: 'borrowed', due: '20/12/2025' }, // Thriller
-    { title: 'Norwegian Wood', author: 'Haruki Murakami', status: 'available', due: null }, // Literary
-    { title: 'The Alchemist', author: 'Paulo Coelho', status: 'available', due: null }, // Philosophy/Fiction
-    { title: 'How to Win Friends and Influence People', author: 'Dale Carnegie', status: 'available', due: null }, // Self-help
-    { title: 'The Design of Everyday Things', author: 'Don Norman', status: 'available', due: null }, // Design
+  { title: 'All The Light We Cannot See', author: 'Anthony Doerr', status: 'available', due: null },
+  { title: 'The Girl Who Drank The Moon', author: 'Kelly Barnhill', status: 'borrowed', due: '06/12/2025' },
+  { title: 'Me Before You', author: 'Jojo Moyes', status: 'available', due: null },
+  { title: 'Pax Journey Home', author: 'Sara Pennypacker', status: 'borrowed', due: '06/12/2025' },
+  { title: 'Atomic Habits', author: 'James Clear', status: 'available', due: null }, // Self-help
+  { title: 'Sapiens', author: 'Yuval Noah Harari', status: 'available', due: null }, // History
+  { title: 'The Pragmatic Programmer', author: 'Andrew Hunt', status: 'available', due: null }, // Tech
+  { title: 'Clean Code', author: 'Robert C. Martin', status: 'borrowed', due: '10/12/2025' }, // Tech
+  { title: 'Thinking, Fast and Slow', author: 'Daniel Kahneman', status: 'available', due: null }, // Psychology
+  { title: 'The Hobbit', author: 'J.R.R. Tolkien', status: 'available', due: null }, // Fantasy
+  { title: 'Dune', author: 'Frank Herbert', status: 'borrowed', due: '15/12/2025' }, // Sci-fi
+  { title: 'Educated', author: 'Tara Westover', status: 'available', due: null }, // Memoir
+  { title: 'Becoming', author: 'Michelle Obama', status: 'available', due: null }, // Biography
+  { title: 'The Silent Patient', author: 'Alex Michaelides', status: 'borrowed', due: '20/12/2025' }, // Thriller
+  { title: 'Norwegian Wood', author: 'Haruki Murakami', status: 'available', due: null }, // Literary
+  { title: 'The Alchemist', author: 'Paulo Coelho', status: 'available', due: null }, // Philosophy/Fiction
+  { title: 'How to Win Friends and Influence People', author: 'Dale Carnegie', status: 'available', due: null }, // Self-help
+  { title: 'The Design of Everyday Things', author: 'Don Norman', status: 'available', due: null }, // Design
 ];
 
 export default function BooksScreen({ theme, lang, strings, colors, onNavigate, searchValue = '', onChangeSearch }) {
@@ -30,7 +30,7 @@ export default function BooksScreen({ theme, lang, strings, colors, onNavigate, 
   const search = searchValue;
   const [tab, setTab] = useState('all'); // all | category | available
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 7;
+  const pageSize = 12;
 
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -131,21 +131,31 @@ export default function BooksScreen({ theme, lang, strings, colors, onNavigate, 
       {/* Pagination */}
       <View style={styles.paginationRow}>
         <TouchableOpacity
-          style={[styles.pageBtn, { borderColor: colors.inputBorder, backgroundColor: colors.cardBg }]}
+          style={[
+            styles.pageIconBtn,
+            { borderColor: colors.inputBorder, backgroundColor: colors.cardBg, opacity: page <= 1 ? 0.5 : 1 },
+          ]}
           disabled={page <= 1}
           onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
         >
-          <Text style={[styles.pageBtnText, { color: page <= 1 ? colors.muted : colors.text }]}>{strings.prev || 'Trước'}</Text>
+          <Ionicons name="chevron-back" size={18} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.pageInfo, { color: colors.text }]}>
-          {page}/{totalPages}
-        </Text>
+
+        <View style={[styles.pageInfoPill, { backgroundColor: colors.cardBg, borderColor: colors.inputBorder }]}>
+          <Text style={[styles.pageInfoText, { color: colors.text }]}>
+            {strings.page || 'Trang'} {page}/{totalPages}
+          </Text>
+        </View>
+
         <TouchableOpacity
-          style={[styles.pageBtn, { borderColor: colors.inputBorder, backgroundColor: colors.cardBg }]}
+          style={[
+            styles.pageIconBtn,
+            { borderColor: colors.inputBorder, backgroundColor: colors.cardBg, opacity: page >= totalPages ? 0.5 : 1 },
+          ]}
           disabled={page >= totalPages}
           onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
         >
-          <Text style={[styles.pageBtnText, { color: page >= totalPages ? colors.muted : colors.text }]}>{strings.next || 'Sau'}</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -226,20 +236,32 @@ const createStyles = (colors) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: 12,
-      paddingVertical: 10,
+      paddingVertical: 12,
       paddingHorizontal: 14,
     },
-    pageBtn: {
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+    pageIconBtn: {
+      width: 36,
+      height: 36,
       borderRadius: 10,
       borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.05,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
     },
-    pageBtnText: {
-      fontSize: 13,
-      fontWeight: '700',
+    pageInfoPill: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      minWidth: 96,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    pageInfo: {
+    pageInfoText: {
       fontSize: 13,
       fontWeight: '700',
     },
