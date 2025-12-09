@@ -5,36 +5,32 @@ import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav';
 
 const mockBooks = [
-  {
-    title: 'All The Light We Cannot See',
-    author: 'Anthony Doerr',
-    status: 'available',
-    due: null,
-  },
-  {
-    title: 'The Girl Who Drank The Moon',
-    author: 'Kelly Barnhill',
-    status: 'borrowed',
-    due: '06/12/2025',
-  },
-  {
-    title: 'Me Before You',
-    author: 'Jojo Moyes',
-    status: 'available',
-    due: null,
-  },
-  {
-    title: 'Pax Journey Home',
-    author: 'Sara Pennypacker',
-    status: 'borrowed',
-    due: '06/12/2025',
-  },
+    { title: 'All The Light We Cannot See', author: 'Anthony Doerr', status: 'available', due: null },
+    { title: 'The Girl Who Drank The Moon', author: 'Kelly Barnhill', status: 'borrowed', due: '06/12/2025' },
+    { title: 'Me Before You', author: 'Jojo Moyes', status: 'available', due: null },
+    { title: 'Pax Journey Home', author: 'Sara Pennypacker', status: 'borrowed', due: '06/12/2025' },
+    { title: 'Atomic Habits', author: 'James Clear', status: 'available', due: null }, // Self-help
+    { title: 'Sapiens', author: 'Yuval Noah Harari', status: 'available', due: null }, // History
+    { title: 'The Pragmatic Programmer', author: 'Andrew Hunt', status: 'available', due: null }, // Tech
+    { title: 'Clean Code', author: 'Robert C. Martin', status: 'borrowed', due: '10/12/2025' }, // Tech
+    { title: 'Thinking, Fast and Slow', author: 'Daniel Kahneman', status: 'available', due: null }, // Psychology
+    { title: 'The Hobbit', author: 'J.R.R. Tolkien', status: 'available', due: null }, // Fantasy
+    { title: 'Dune', author: 'Frank Herbert', status: 'borrowed', due: '15/12/2025' }, // Sci-fi
+    { title: 'Educated', author: 'Tara Westover', status: 'available', due: null }, // Memoir
+    { title: 'Becoming', author: 'Michelle Obama', status: 'available', due: null }, // Biography
+    { title: 'The Silent Patient', author: 'Alex Michaelides', status: 'borrowed', due: '20/12/2025' }, // Thriller
+    { title: 'Norwegian Wood', author: 'Haruki Murakami', status: 'available', due: null }, // Literary
+    { title: 'The Alchemist', author: 'Paulo Coelho', status: 'available', due: null }, // Philosophy/Fiction
+    { title: 'How to Win Friends and Influence People', author: 'Dale Carnegie', status: 'available', due: null }, // Self-help
+    { title: 'The Design of Everyday Things', author: 'Don Norman', status: 'available', due: null }, // Design
 ];
 
 export default function BooksScreen({ theme, lang, strings, colors, onNavigate, searchValue = '', onChangeSearch }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const search = searchValue;
   const [tab, setTab] = useState('all'); // all | category | available
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 7;
 
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -50,6 +46,10 @@ export default function BooksScreen({ theme, lang, strings, colors, onNavigate, 
     }
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = Math.min(currentPage, totalPages);
+  const pageData = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   useEffect(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -98,7 +98,7 @@ export default function BooksScreen({ theme, lang, strings, colors, onNavigate, 
 
       {/* List */}
       <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
-        {filtered.map((b) => (
+        {pageData.map((b) => (
           <TouchableOpacity
             key={b.title}
             style={[styles.bookRow, { borderColor: colors.inputBorder }]}
@@ -127,6 +127,27 @@ export default function BooksScreen({ theme, lang, strings, colors, onNavigate, 
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Pagination */}
+      <View style={styles.paginationRow}>
+        <TouchableOpacity
+          style={[styles.pageBtn, { borderColor: colors.inputBorder, backgroundColor: colors.cardBg }]}
+          disabled={page <= 1}
+          onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+        >
+          <Text style={[styles.pageBtnText, { color: page <= 1 ? colors.muted : colors.text }]}>{strings.prev || 'Trước'}</Text>
+        </TouchableOpacity>
+        <Text style={[styles.pageInfo, { color: colors.text }]}>
+          {page}/{totalPages}
+        </Text>
+        <TouchableOpacity
+          style={[styles.pageBtn, { borderColor: colors.inputBorder, backgroundColor: colors.cardBg }]}
+          disabled={page >= totalPages}
+          onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+        >
+          <Text style={[styles.pageBtnText, { color: page >= totalPages ? colors.muted : colors.text }]}>{strings.next || 'Sau'}</Text>
+        </TouchableOpacity>
+      </View>
 
       <BottomNav
         activeKey="library"
@@ -199,6 +220,28 @@ const createStyles = (colors) =>
       paddingHorizontal: 14,
       paddingBottom: 90,
       gap: 12,
+    },
+    paginationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+    },
+    pageBtn: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
+      borderWidth: 1,
+    },
+    pageBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    pageInfo: {
+      fontSize: 13,
+      fontWeight: '700',
     },
     bookRow: {
       flexDirection: 'row',
