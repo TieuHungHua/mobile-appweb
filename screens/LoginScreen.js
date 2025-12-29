@@ -12,8 +12,11 @@ import {
     KeyboardAvoidingView,
     Platform,
     Switch,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import SettingsPanel from '../components/SettingsPanel';
+import { authAPI, storeToken, storeRefreshToken, storeUserInfo } from '../utils/api';
 
 export default function LoginScreen({
     onNavigateToRegister,
@@ -29,11 +32,55 @@ export default function LoginScreen({
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showLangList, setShowLangList] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const styles = useMemo(() => createStyles(colors), [colors]);
 
-    const handleLogin = () => {
-        onNavigateHome?.();
+    const handleLogin = async () => {
+        // Validate input
+        if (!username.trim()) {
+            setError(strings.usernameRequired || 'Vui lòng nhập tên đăng nhập');
+            return;
+        }
+
+        if (!password.trim()) {
+            setError(strings.passwordRequired || 'Vui lòng nhập mật khẩu');
+            return;
+        }
+
+        setError('');
+        setLoading(true);
+
+        try {
+            // Call login API
+            const response = await authAPI.login(username.trim(), password);
+
+            // Store tokens and user info
+            if (response.access_token) {
+                await storeToken(response.access_token);
+            }
+            if (response.refresh_token) {
+                await storeRefreshToken(response.refresh_token);
+            }
+            if (response.user) {
+                await storeUserInfo(response.user);
+            }
+
+            // Navigate to home on success
+            onNavigateHome?.();
+        } catch (err) {
+            console.error('Login error:', err);
+            const errorMessage = err.message || strings.loginError || 'Đăng nhập thất bại. Vui lòng thử lại.';
+            setError(errorMessage);
+            Alert.alert(
+                strings.error || 'Lỗi',
+                errorMessage,
+                [{ text: strings.ok || 'OK' }]
+            );
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleForgotPassword = () => {
@@ -74,15 +121,26 @@ export default function LoginScreen({
 
                                 {/* Form đăng nhập */}
                                 <View style={styles.form}>
+                                    {/* Error message */}
+                                    {error ? (
+                                        <View style={styles.errorContainer}>
+                                            <Text style={[styles.errorText, { color: colors.error || '#ff4444' }]}>{error}</Text>
+                                        </View>
+                                    ) : null}
+
                                     {/* Tên đăng nhập */}
                                     <View style={styles.inputGroup}>
                                         <Text style={[styles.label, { color: colors.label }]}>{strings.username}</Text>
                                         <TextInput
                                             style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.text }]}
                                             value={username}
-                                            onChangeText={setUsername}
+                                            onChangeText={(text) => {
+                                                setUsername(text);
+                                                setError(''); // Clear error when user types
+                                            }}
                                             autoCapitalize="none"
                                             placeholderTextColor={colors.placeholder}
+                                            editable={!loading}
                                         />
                                     </View>
 
@@ -97,21 +155,51 @@ export default function LoginScreen({
                                         <TextInput
                                             style={[styles.input, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg, color: colors.text }]}
                                             value={password}
-                                            onChangeText={setPassword}
+                                            onChangeText={(text) => {
+                                                setPassword(text);
+                                                setError(''); // Clear error when user types
+                                            }}
                                             secureTextEntry
                                             autoCapitalize="none"
                                             placeholderTextColor={colors.placeholder}
+                                            editable={!loading}
                                         />
                                     </View>
 
                                     {/* Buttons */}
                                     <View style={styles.loginButtonContainer}>
-                                        <TouchableOpacity style={[styles.loginButton, { backgroundColor: colors.buttonBg }]} onPress={handleLogin}>
-                                            <Text style={[styles.buttonText, { color: colors.buttonText }]}>{strings.login}</Text>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.loginButton,
+                                                {
+                                                    backgroundColor: loading ? colors.buttonDisabled || colors.muted : colors.buttonBg,
+                                                    opacity: loading ? 0.6 : 1,
+                                                }
+                                            ]}
+                                            onPress={handleLogin}
+                                            disabled={loading}
+                                        >
+                                            {loading ? (
+                                                <ActivityIndicator size="small" color={colors.buttonText} />
+                                            ) : (
+                                                <Text style={[styles.buttonText, { color: colors.buttonText }]}>{strings.login}</Text>
+                                            )}
                                         </TouchableOpacity>
 
-                                        <TouchableOpacity style={[styles.loginButton, { backgroundColor: colors.buttonBg }]} onPress={onNavigateToRegister}>
-                                            <Text style={[styles.buttonText, { color: colors.buttonText }]}>{strings.register}</Text>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.loginButton,
+                                                {
+                                                    backgroundColor: 'transparent',
+                                                    borderWidth: 1.5,
+                                                    borderColor: colors.buttonBg,
+                                                    opacity: loading ? 0.6 : 1,
+                                                }
+                                            ]}
+                                            onPress={onNavigateToRegister}
+                                            disabled={loading}
+                                        >
+                                            <Text style={[styles.buttonText, { color: colors.buttonBg }]}>{strings.register}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -269,6 +357,16 @@ const createStyles = (colors) =>
         langItem: {
             paddingVertical: 10,
             paddingHorizontal: 12,
+        },
+        errorContainer: {
+            marginBottom: 15,
+            padding: 12,
+            borderRadius: 8,
+            backgroundColor: 'rgba(255, 68, 68, 0.1)',
+        },
+        errorText: {
+            fontSize: 14,
+            textAlign: 'center',
         },
     });
 

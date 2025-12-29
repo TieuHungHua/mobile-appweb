@@ -11,7 +11,10 @@ import {
     Platform,
     Keyboard,
     TouchableWithoutFeedback,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
+import { authAPI } from '../utils/api';
 
 export default function RegisterScreen({
     onNavigateToLogin,
@@ -32,6 +35,8 @@ export default function RegisterScreen({
     const [emailError, setEmailError] = useState('');
     const [codeError, setCodeError] = useState('');
     const [showLangList, setShowLangList] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [registerError, setRegisterError] = useState('');
 
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -81,22 +86,90 @@ export default function RegisterScreen({
         }
     };
 
-    const handleRegister = () => {
+    const handleRegister = async () => {
+        // Clear previous errors
+        setRegisterError('');
+
+        // Validate email
         if (!validateEmail(email)) {
             return;
         }
+
+        // Validate code if student
         if (userType === 'student' && !validateCode(code)) {
             return;
         }
-        console.log('Đăng ký với:', {
-            username,
-            password,
-            confirmPassword,
-            email,
-            phone,
-            userType,
-            code,
-        });
+
+        // Basic validation
+        if (!username.trim()) {
+            setRegisterError('Vui lòng nhập tên đăng nhập');
+            return;
+        }
+        if (!password.trim()) {
+            setRegisterError('Vui lòng nhập mật khẩu');
+            return;
+        }
+        if (!confirmPassword.trim()) {
+            setRegisterError('Vui lòng xác nhận mật khẩu');
+            return;
+        }
+        if (!phone.trim()) {
+            setRegisterError('Vui lòng nhập số điện thoại');
+            return;
+        }
+        if (userType === 'student' && !code.trim()) {
+            setRegisterError('Vui lòng nhập mã sinh viên');
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            // Map userType: 'teacher' -> 'lecturer' for API
+            const role = userType === 'student' ? 'student' : 'lecturer';
+
+            // Prepare register data
+            const registerData = {
+                username: username.trim(),
+                email: email.trim(),
+                phone: phone.trim(),
+                role: role,
+                password: password,
+                confirmPassword: confirmPassword,
+            };
+
+            // Add studentId if student
+            if (userType === 'student') {
+                registerData.studentId = code.trim();
+            }
+
+            // Call register API
+            const response = await authAPI.register(registerData);
+
+            // Success
+            Alert.alert(
+                'Đăng ký thành công',
+                'Tài khoản của bạn đã được tạo thành công!',
+                [
+                    {
+                        text: 'OK',
+                        onPress: () => {
+                            // Navigate to login or handle success
+                            if (onNavigateToLogin) {
+                                onNavigateToLogin();
+                            }
+                        },
+                    },
+                ]
+            );
+        } catch (error) {
+            // Handle error
+            const errorMessage = error.message || 'Đăng ký thất bại. Vui lòng thử lại.';
+            setRegisterError(errorMessage);
+            Alert.alert('Lỗi đăng ký', errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -260,9 +333,28 @@ export default function RegisterScreen({
                                         />
                                     </View>
 
+                                    {/* Error message */}
+                                    {registerError ? (
+                                        <View style={styles.errorContainer}>
+                                            <Text style={[styles.errorText, { color: colors.error }]}>{registerError}</Text>
+                                        </View>
+                                    ) : null}
+
                                     {/* Button */}
-                                    <TouchableOpacity style={[styles.registerButton, { backgroundColor: colors.buttonBg }]} onPress={handleRegister}>
-                                        <Text style={[styles.buttonText, { color: colors.buttonText }]}>{strings.register}</Text>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.registerButton,
+                                            { backgroundColor: colors.buttonBg },
+                                            isLoading && styles.registerButtonDisabled,
+                                        ]}
+                                        onPress={handleRegister}
+                                        disabled={isLoading}
+                                    >
+                                        {isLoading ? (
+                                            <ActivityIndicator color={colors.buttonText} />
+                                        ) : (
+                                            <Text style={[styles.buttonText, { color: colors.buttonText }]}>{strings.register}</Text>
+                                        )}
                                     </TouchableOpacity>
 
                                     {/* Nút trở về đăng nhập */}
@@ -354,6 +446,12 @@ const createStyles = (colors) =>
             fontSize: 12,
             marginTop: 5,
         },
+        errorContainer: {
+            marginBottom: 15,
+            padding: 10,
+            borderRadius: 8,
+            backgroundColor: colors.error + '15',
+        },
         radioContainer: {
             flexDirection: 'row',
             marginTop: 10,
@@ -387,6 +485,9 @@ const createStyles = (colors) =>
             alignItems: 'center',
             justifyContent: 'center',
             marginTop: 10,
+        },
+        registerButtonDisabled: {
+            opacity: 0.6,
         },
         buttonText: {
             fontSize: 15,
