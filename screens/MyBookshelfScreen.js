@@ -1,39 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
-import { useMemo, useState, useRef } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Platform, Image, PanResponder } from 'react-native';
+import { useMemo, useState, useRef, useEffect } from 'react';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Platform, Image, PanResponder, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { borrowsAPI } from '../utils/api/borrows';
+import { getStoredUserInfo } from '../utils/api';
 
-// Mock data
-const mockBorrowedBooks = [
-  {
-    id: 1,
-    title: 'Pax Journey Home',
-    author: 'Sara Pennypacker',
-    cover: null,
-    expirationDate: '22-11-2005',
-    daysLeft: 1,
-    status: 'active', // active, expired
-  },
-  {
-    id: 2,
-    title: 'Me Before You',
-    author: 'Jojo Moyes',
-    cover: null,
-    expirationDate: '12-11-2005',
-    daysLeft: 5,
-    status: 'active',
-  },
-  {
-    id: 3,
-    title: 'Me Before You',
-    author: 'Jojo Moyes',
-    cover: null,
-    expirationDate: '12-11-3025',
-    daysLeft: -10,
-    status: 'expired',
-  },
-];
-
+// Mock data for favorites and saved (not implemented in backend yet)
 const mockFavoriteBooks = [
   {
     id: 1,
@@ -81,6 +53,9 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
   const [activeTab, setActiveTab] = useState(propActiveTab || 'borrowed'); // 'borrowed', 'favorites', 'saved'
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [borrowedBooks, setBorrowedBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Sync with prop if provided
   const currentTab = propActiveTab !== undefined ? propActiveTab : activeTab;
@@ -91,6 +66,77 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
       setActiveTab(tab);
     }
   };
+
+  // Fetch borrowed books
+  const fetchBorrowedBooks = async () => {
+    try {
+      setRefreshing(true);
+      const userInfo = await getStoredUserInfo();
+      if (!userInfo?.id) {
+        setBorrowedBooks([]);
+        return;
+      }
+
+      // Fetch active and overdue borrows
+      const [activeResponse, returnedResponse] = await Promise.all([
+        borrowsAPI.getBorrows({ status: 'active', limit: 100 }),
+        borrowsAPI.getBorrows({ status: 'overdue', limit: 100 }),
+      ]);
+
+      const allBorrows = [...(activeResponse.data || []), ...(returnedResponse.data || [])];
+      
+      // Transform borrows to book items with status
+      const books = allBorrows.map((borrow) => {
+        const dueDate = new Date(borrow.dueAt);
+        const now = new Date();
+        const daysLeft = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+        const isExpired = borrow.status === 'overdue' || daysLeft < 0;
+
+        const day = String(dueDate.getDate()).padStart(2, '0');
+        const month = String(dueDate.getMonth() + 1).padStart(2, '0');
+        const year = dueDate.getFullYear();
+
+        return {
+          id: borrow.id,
+          borrowId: borrow.id,
+          bookId: borrow.book?.id || borrow.bookId,
+          title: borrow.book?.title || 'Unknown',
+          author: borrow.book?.author || 'Unknown',
+          cover: null, // You can add coverImageUrl if available
+          expirationDate: `${day}-${month}-${year}`,
+          daysLeft,
+          status: isExpired ? 'expired' : 'active',
+          borrow: borrow, // Keep full borrow object for return/renew
+        };
+      });
+
+      setBorrowedBooks(books);
+    } catch (error) {
+      console.error('Error fetching borrowed books:', error);
+      Alert.alert(
+        strings.error || 'Error',
+        error.message || strings.loadError || 'Không thể tải danh sách sách đã mượn'
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentTab === 'borrowed') {
+      fetchBorrowedBooks();
+    } else {
+      setLoading(false);
+    }
+  }, [currentTab]);
+
+  // Refresh when tab changes to borrowed
+  useEffect(() => {
+    if (currentTab === 'borrowed' && !loading) {
+      fetchBorrowedBooks();
+    }
+  }, [currentTab]);
 
   // Pan responder for swipe back gesture
   const panResponder = useRef(
@@ -109,7 +155,7 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
   const getFilteredBooks = () => {
     let books = [];
     if (currentTab === 'borrowed') {
-      books = mockBorrowedBooks;
+      books = borrowedBooks;
     } else if (currentTab === 'favorites') {
       books = mockFavoriteBooks;
     } else if (currentTab === 'saved') {
@@ -125,19 +171,44 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
     return books;
   };
 
-  const getBorrowedBooksGrouped = () => {
-    const books = getFilteredBooks();
-    if (currentTab !== 'borrowed') return { active: [], expired: [] };
-
-    const active = books.filter((book) => book.status !== 'expired' && book.daysLeft >= 0);
-    const expired = books.filter((book) => book.status === 'expired' || book.daysLeft < 0);
-
-    return { active, expired };
+  const handleRenew = async (borrowId) => {
+    // Note: Backend doesn't have renew endpoint, so we'll show a message
+    Alert.alert(
+      strings.info || 'Info',
+      strings.renewNotAvailable || 'Tính năng gia hạn chưa được hỗ trợ. Vui lòng liên hệ thủ thư để gia hạn.'
+    );
   };
 
-  const handleRenew = (bookId) => {
-    // TODO: Implement renew logic
-    console.log('Renew book:', bookId);
+  const handleReturn = async (borrowId) => {
+    Alert.alert(
+      strings.confirm || 'Confirm',
+      strings.confirmReturn || 'Bạn có chắc chắn muốn trả sách này?',
+      [
+        {
+          text: strings.cancel || 'Hủy',
+          style: 'cancel',
+        },
+        {
+          text: strings.confirm || 'Xác nhận',
+          onPress: async () => {
+            try {
+              await borrowsAPI.returnBook(borrowId);
+              Alert.alert(
+                strings.success || 'Success',
+                strings.returnSuccess || 'Trả sách thành công'
+              );
+              fetchBorrowedBooks(); // Refresh list
+            } catch (error) {
+              console.error('Error returning book:', error);
+              Alert.alert(
+                strings.error || 'Error',
+                error.message || strings.returnError || 'Không thể trả sách'
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderBookItem = (book) => {
@@ -173,20 +244,42 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
               <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
             </View>
             {!isExpired ? (
-              <TouchableOpacity
-                style={[styles.renewButton, { backgroundColor: '#17a2b8' }]}
-                onPress={() => handleRenew(book.id)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.renewButtonText, { color: '#fff' }]}>
-                  {strings.renew || 'Gia hạn'}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.actionButtonsRow}>
+                <TouchableOpacity
+                  style={[styles.renewButton, { backgroundColor: '#17a2b8' }]}
+                  onPress={() => handleRenew(book.borrowId)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.renewButtonText, { color: '#fff' }]}>
+                    {strings.renew || 'Gia hạn'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.returnButton, { backgroundColor: colors.buttonBg }]}
+                  onPress={() => handleReturn(book.borrowId)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.returnButtonText, { color: colors.buttonText }]}>
+                    {strings.return || 'Trả sách'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             ) : (
-              <View style={[styles.expiredButton, { backgroundColor: '#e74c3c' }]}>
-                <Text style={[styles.expiredButtonText, { color: '#fff' }]}>
-                  {strings.expired || 'Hết hạn'}
-                </Text>
+              <View style={styles.actionButtonsRow}>
+                <View style={[styles.expiredButton, { backgroundColor: '#e74c3c' }]}>
+                  <Text style={[styles.expiredButtonText, { color: '#fff' }]}>
+                    {strings.expired || 'Hết hạn'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.returnButton, { backgroundColor: colors.buttonBg }]}
+                  onPress={() => handleReturn(book.borrowId)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.returnButtonText, { color: colors.buttonText }]}>
+                    {strings.return || 'Trả sách'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -198,7 +291,7 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
         <TouchableOpacity
           key={book.id}
           style={[styles.bookItem, { backgroundColor: colors.cardBg, borderColor: colors.inputBorder }]}
-          onPress={() => onNavigate?.('bookDetail')}
+          onPress={() => onNavigate?.('bookDetail', { bookId: book.bookId || book.id })}
           activeOpacity={0.7}
         >
           <View style={[styles.bookCover, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
@@ -322,25 +415,42 @@ export default function MyBookshelfScreen({ theme, lang, strings, colors, onNavi
       )}
 
       {/* Content */}
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {getFilteredBooks().length > 0 ? (
-          getFilteredBooks().map((book) => renderBookItem(book))
-        ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="book-outline" size={64} color={colors.muted} />
-            <Text style={[styles.emptyText, { color: colors.muted }]}>
-              {currentTab === 'borrowed'
-                ? strings.noBorrowedBooks || 'Chưa có sách đã mượn'
-                : currentTab === 'favorites'
-                ? strings.noFavoriteBooks || 'Chưa có sách yêu thích'
-                : strings.noSavedBooks || 'Chưa có sách đã lưu'}
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.buttonBg} />
+          <Text style={[styles.loadingText, { color: colors.muted }]}>{strings.loading || 'Đang tải...'}</Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            currentTab === 'borrowed' ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={fetchBorrowedBooks}
+                colors={[colors.buttonBg]}
+                tintColor={colors.buttonBg}
+              />
+            ) : undefined
+          }
+        >
+          {getFilteredBooks().length > 0 ? (
+            getFilteredBooks().map((book) => renderBookItem(book))
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="book-outline" size={64} color={colors.muted} />
+              <Text style={[styles.emptyText, { color: colors.muted }]}>
+                {currentTab === 'borrowed'
+                  ? strings.noBorrowedBooks || 'Chưa có sách đã mượn'
+                  : currentTab === 'favorites'
+                  ? strings.noFavoriteBooks || 'Chưa có sách yêu thích'
+                  : strings.noSavedBooks || 'Chưa có sách đã lưu'}
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -511,6 +621,33 @@ const createStyles = (colors) =>
       height: 1,
       marginVertical: 16,
       marginHorizontal: 4,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
+      gap: 12,
+    },
+    loadingText: {
+      fontSize: 16,
+      fontWeight: '500',
+    },
+    actionButtonsRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 8,
+    },
+    returnButton: {
+      flex: 1,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    returnButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
     },
   });
 

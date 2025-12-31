@@ -1,9 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
-import { useMemo, useState, useRef } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, Alert, Image, Modal, PanResponder } from 'react-native';
+import { useMemo, useState, useRef, useEffect } from 'react';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, Alert, Image, Modal, PanResponder, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { usersAPI } from '../utils/api/users';
+import { uploadAPI } from '../utils/api/upload';
+import { authAPI } from '../utils/api/auth';
+import { getStoredUserInfo, storeUserInfo } from '../utils/api';
 
 export default function EditInformationScreen({ theme, lang, strings, colors, onNavigate }) {
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -14,9 +18,13 @@ export default function EditInformationScreen({ theme, lang, strings, colors, on
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [gender, setGender] = useState('male'); // 'male' or 'female'
     const [avatarUri, setAvatarUri] = useState(null);
+    const [avatarUrl, setAvatarUrl] = useState(null);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [password, setPassword] = useState('');
     const [passwordError, setPasswordError] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [userId, setUserId] = useState(null);
 
     // Pan responder for swipe back gesture
     const panResponder = useRef(
@@ -33,6 +41,42 @@ export default function EditInformationScreen({ theme, lang, strings, colors, on
             },
         })
     ).current;
+
+    // Load user info on mount
+    useEffect(() => {
+        const loadUserInfo = async () => {
+            try {
+                setLoading(true);
+                const userInfo = await getStoredUserInfo();
+                if (userInfo) {
+                    setUserId(userInfo.id);
+                    setFullName(userInfo.displayName || '');
+                    setPhone(userInfo.phone || '');
+                    if (userInfo.avatar) {
+                        setAvatarUrl(userInfo.avatar);
+                    }
+                    // Note: dateOfBirth and gender might not be in user model
+                    // You may need to adjust based on your backend schema
+                } else {
+                    Alert.alert(
+                        strings.error || 'Error',
+                        strings.loginRequired || 'Vui lòng đăng nhập'
+                    );
+                    onNavigate?.('settings');
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+                Alert.alert(
+                    strings.error || 'Error',
+                    strings.loadError || 'Không thể tải thông tin người dùng'
+                );
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadUserInfo();
+    }, []);
 
     const handlePickImage = async () => {
         try {
@@ -53,6 +97,7 @@ export default function EditInformationScreen({ theme, lang, strings, colors, on
 
             if (!result.canceled && result.assets && result.assets[0]) {
                 setAvatarUri(result.assets[0].uri);
+                setAvatarUrl(null); // Clear old URL when new image is selected
             }
         } catch (error) {
             console.error('Error picking image:', error);
@@ -102,10 +147,6 @@ export default function EditInformationScreen({ theme, lang, strings, colors, on
             Alert.alert(strings.error || 'Error', strings.phoneRequired || 'Vui lòng nhập số điện thoại');
             return;
         }
-        if (!dateOfBirth.trim()) {
-            Alert.alert(strings.error || 'Error', strings.dateOfBirthRequired || 'Vui lòng chọn ngày sinh');
-            return;
-        }
 
         // Show password modal
         setShowPasswordModal(true);
@@ -113,39 +154,109 @@ export default function EditInformationScreen({ theme, lang, strings, colors, on
         setPasswordError('');
     };
 
-    const handlePasswordConfirm = () => {
+    const handlePasswordConfirm = async () => {
         if (!password.trim()) {
             setPasswordError(strings.passwordRequired || 'Vui lòng nhập mật khẩu');
             return;
         }
 
-        // TODO: Verify password with backend
-        // For now, just check if password is not empty
-        // In real app, you would call API to verify password
+        try {
+            const userInfo = await getStoredUserInfo();
+            if (!userInfo?.username) {
+                setPasswordError(strings.loginRequired || 'Vui lòng đăng nhập');
+                return;
+            }
 
-        // Simulate password verification
-        if (password.length < 6) {
-            setPasswordError(strings.passwordIncorrect || 'Mật khẩu không đúng');
-            return;
+            // Verify password by attempting login
+            await authAPI.login(userInfo.username, password);
+            
+            // Password is correct, proceed to save
+            setShowPasswordModal(false);
+            setPassword('');
+            setPasswordError('');
+
+            await handleSaveUserInfo();
+        } catch (error) {
+            console.error('Password verification error:', error);
+            setPasswordError(error.message || strings.passwordIncorrect || 'Mật khẩu không đúng');
         }
-
-        // Password is correct, proceed to save
-        setShowPasswordModal(false);
-        setPassword('');
-        setPasswordError('');
-
-        // TODO: Implement actual save logic with API call
-        Alert.alert(
-            strings.success || 'Success',
-            strings.saveSuccess || 'Đã lưu thông tin thành công',
-            [
-                {
-                    text: strings.ok || 'OK',
-                    onPress: () => onNavigate?.('settings'),
-                },
-            ]
-        );
     };
+
+    const handleSaveUserInfo = async () => {
+        if (!userId) return;
+
+        try {
+            setSaving(true);
+
+            let finalAvatarUrl = avatarUrl;
+
+            // Upload new avatar if selected
+            if (avatarUri) {
+                try {
+                    const uploadResult = await uploadAPI.uploadAvatar({
+                        uri: avatarUri,
+                        type: 'image/jpeg',
+                        name: 'avatar.jpg',
+                    });
+                    finalAvatarUrl = uploadResult.secureUrl || uploadResult.url;
+                } catch (uploadError) {
+                    console.error('Error uploading avatar:', uploadError);
+                    Alert.alert(
+                        strings.error || 'Error',
+                        strings.uploadError || 'Không thể tải ảnh đại diện. Vui lòng thử lại.'
+                    );
+                    return;
+                }
+            }
+
+            // Prepare update data
+            const updateData = {
+                displayName: fullName.trim(),
+                phone: phone.trim(),
+            };
+
+            if (finalAvatarUrl) {
+                updateData.avatar = finalAvatarUrl;
+            }
+
+            // Update user info
+            const updatedUser = await usersAPI.updateUser(userId, updateData);
+
+            // Update stored user info
+            await storeUserInfo(updatedUser);
+
+            Alert.alert(
+                strings.success || 'Success',
+                strings.saveSuccess || 'Đã lưu thông tin thành công',
+                [
+                    {
+                        text: strings.ok || 'OK',
+                        onPress: () => onNavigate?.('settings'),
+                    },
+                ]
+            );
+        } catch (error) {
+            console.error('Error saving user info:', error);
+            Alert.alert(
+                strings.error || 'Error',
+                error.message || strings.saveError || 'Không thể lưu thông tin'
+            );
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, { backgroundColor: colors.background }]}>
+                <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.buttonBg} />
+                    <Text style={[styles.loadingText, { color: colors.muted }]}>{strings.loading || 'Đang tải...'}</Text>
+                </View>
+            </View>
+        );
+    }
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]} {...panResponder.panHandlers}>
@@ -189,6 +300,8 @@ export default function EditInformationScreen({ theme, lang, strings, colors, on
                                 <View style={[styles.avatarContainer, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                                     {avatarUri ? (
                                         <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                                    ) : avatarUrl ? (
+                                        <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
                                     ) : (
                                         <Ionicons name="person" size={50} color={colors.buttonBg} />
                                     )}
@@ -290,13 +403,18 @@ export default function EditInformationScreen({ theme, lang, strings, colors, on
 
                         {/* Save Button */}
                         <TouchableOpacity
-                            style={[styles.saveButton, { backgroundColor: colors.buttonBg }]}
+                            style={[styles.saveButton, { backgroundColor: colors.buttonBg, opacity: saving ? 0.6 : 1 }]}
                             onPress={handleSave}
                             activeOpacity={0.8}
+                            disabled={saving}
                         >
-                            <Text style={[styles.saveButtonText, { color: colors.buttonText }]}>
-                                {strings.save || 'Lưu'}
-                            </Text>
+                            {saving ? (
+                                <ActivityIndicator size="small" color={colors.buttonText} />
+                            ) : (
+                                <Text style={[styles.saveButtonText, { color: colors.buttonText }]}>
+                                    {strings.save || 'Lưu'}
+                                </Text>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
@@ -660,6 +778,16 @@ const createStyles = (colors) =>
         errorText: {
             fontSize: 12,
             marginTop: 5,
+        },
+        loadingContainer: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 12,
+        },
+        loadingText: {
+            fontSize: 16,
+            fontWeight: '500',
         },
     });
 

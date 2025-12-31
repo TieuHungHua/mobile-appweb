@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,26 +11,17 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   PanResponder,
+  ActivityIndicator,
+  Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav';
+import { booksAPI } from '../utils/api/books';
+import { borrowsAPI } from '../utils/api/borrows';
+import { getStoredUserInfo } from '../utils/api';
 
-const bookMock = {
-  title: 'All The Light We Cannot See',
-  author: 'Anthony Doerr',
-  status: 'available',
-  copies: '2 of 5 copies',
-  tags: ['Historical', 'Fiction'],
-  categories: ['Văn học', 'Hư cấu'],
-};
-
-const detailSections = [
-  { title: 'Danh mục/Thể loại', content: 'Tiểu thuyết lịch sử, Hư cấu, Văn học hiện đại' },
-  { title: 'Mô tả', content: 'Một cô gái mù người Pháp và một cậu bé người Đức trong Thế chiến II.' },
-  { title: 'Thông tin chung', content: '• NXB: Scribner\n• Năm XB: 2014\n• Trang: 531' },
-];
-
-export default function BookDetailScreen({ theme, lang, strings, colors, onNavigate, hideBottomNav = false }) {
+export default function BookDetailScreen({ theme, lang, strings, colors, onNavigate, hideBottomNav = false, bookId }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [search, setSearch] = useState('');
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
@@ -39,6 +30,10 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
   const [isBorrowed, setIsBorrowed] = useState(false);
   const [borrowDue, setBorrowDue] = useState(null);
   const [showBorrowSheet, setShowBorrowSheet] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [book, setBook] = useState(null);
+  const [borrowing, setBorrowing] = useState(false);
+  const [currentBorrow, setCurrentBorrow] = useState(null);
 
   const basePanResponder = useRef(
     PanResponder.create({
@@ -63,6 +58,102 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
     })
   ).current;
 
+  // Handle borrow book
+  const handleBorrow = async () => {
+    if (!bookId || !book) return;
+
+    try {
+      setBorrowing(true);
+      const userInfo = await getStoredUserInfo();
+      if (!userInfo?.id) {
+        Alert.alert(strings.error || 'Error', strings.loginRequired || 'Vui lòng đăng nhập');
+        return;
+      }
+
+      // Calculate due date (14 days from now)
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 14);
+
+      const borrowData = {
+        bookId: bookId,
+        dueAt: dueDate.toISOString(),
+      };
+
+      const result = await borrowsAPI.borrowBook(borrowData);
+      
+      setIsBorrowed(true);
+      setCurrentBorrow(result);
+      const day = String(dueDate.getDate()).padStart(2, '0');
+      const month = String(dueDate.getMonth() + 1).padStart(2, '0');
+      const year = dueDate.getFullYear();
+      setBorrowDue(`${day}/${month}/${year}`);
+      setShowBorrowSheet(false);
+
+      // Refresh book data to update available copies
+      const updatedBook = await booksAPI.getBookById(bookId);
+      setBook(updatedBook);
+
+      Alert.alert(
+        strings.success || 'Success',
+        strings.borrowSuccess || 'Mượn sách thành công'
+      );
+    } catch (error) {
+      console.error('Error borrowing book:', error);
+      Alert.alert(
+        strings.error || 'Error',
+        error.message || strings.borrowError || 'Không thể mượn sách'
+      );
+    } finally {
+      setBorrowing(false);
+    }
+  };
+
+  // Fetch book details and check borrow status
+  useEffect(() => {
+    if (!bookId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchBookDetails = async () => {
+      try {
+        setLoading(true);
+        const bookData = await booksAPI.getBookById(bookId);
+        setBook(bookData);
+
+        // Check if user has borrowed this book
+        const userInfo = await getStoredUserInfo();
+        if (userInfo?.id) {
+          try {
+            const borrowsResponse = await borrowsAPI.getBorrows({ status: 'active' });
+            const activeBorrow = borrowsResponse.data?.find((b) => b.bookId === bookId);
+            if (activeBorrow) {
+              setIsBorrowed(true);
+              setCurrentBorrow(activeBorrow);
+              const dueDate = new Date(activeBorrow.dueAt);
+              const day = String(dueDate.getDate()).padStart(2, '0');
+              const month = String(dueDate.getMonth() + 1).padStart(2, '0');
+              const year = dueDate.getFullYear();
+              setBorrowDue(`${day}/${month}/${year}`);
+            }
+          } catch (error) {
+            console.error('Error checking borrow status:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching book details:', error);
+        Alert.alert(
+          strings.error || 'Error',
+          error.message || strings.bookNotFound || 'Không tìm thấy sách'
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookDetails();
+  }, [bookId]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]} {...basePanResponder.panHandlers}>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
@@ -86,48 +177,69 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
       </View>
 
       {/* Content */}
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.bookCard, { backgroundColor: colors.cardBg, borderColor: colors.inputBorder }]}>
-          <View style={[styles.cover, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-            <Ionicons name="book" size={42} color={colors.buttonBg} />
-          </View>
-          <Text style={[styles.bookTitle, { color: colors.text }]}>{bookMock.title}</Text>
-          <Text style={[styles.bookAuthor, { color: colors.muted }]}>{bookMock.author}</Text>
-          <View style={styles.tagRow}>
-            <View
-              style={[
-                styles.tag,
-                isBorrowed
-                  ? { backgroundColor: '#fef4e6', borderColor: '#f39c12' }
-                  : { backgroundColor: '#e8f5e9', borderColor: '#2ecc71' },
-              ]}
-            >
-              <Text
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.buttonBg} />
+          <Text style={[styles.loadingText, { color: colors.muted }]}>{strings.loading || 'Đang tải...'}</Text>
+        </View>
+      ) : !book ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color={colors.muted} />
+          <Text style={[styles.errorText, { color: colors.muted }]}>{strings.bookNotFound || 'Không tìm thấy sách'}</Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={[styles.bookCard, { backgroundColor: colors.cardBg, borderColor: colors.inputBorder }]}>
+            <View style={[styles.cover, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+              {book.coverImageUrl ? (
+                <Image source={{ uri: book.coverImageUrl }} style={styles.coverImage} />
+              ) : (
+                <Ionicons name="book" size={42} color={colors.buttonBg} />
+              )}
+            </View>
+            <Text style={[styles.bookTitle, { color: colors.text }]}>{book.title}</Text>
+            <Text style={[styles.bookAuthor, { color: colors.muted }]}>{book.author}</Text>
+            <View style={styles.tagRow}>
+              <View
                 style={[
-                  styles.tagText,
-                  { color: isBorrowed ? '#f39c12' : '#2ecc71' },
+                  styles.tag,
+                  isBorrowed
+                    ? { backgroundColor: '#fef4e6', borderColor: '#f39c12' }
+                    : book.availableCopies > 0
+                    ? { backgroundColor: '#e8f5e9', borderColor: '#2ecc71' }
+                    : { backgroundColor: '#ffebee', borderColor: '#e74c3c' },
                 ]}
               >
-                {isBorrowed ? strings.borrowed || 'Đã mượn' : strings.available || 'Available'}
-              </Text>
-            </View>
-            <View style={[styles.tag, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-              <Text style={[styles.tagText, { color: colors.text }]}>{bookMock.copies}</Text>
-            </View>
-          </View>
-          {isBorrowed && borrowDue && (
-            <Text style={[styles.bookMetaCenter, { color: colors.muted }]}>
-              {strings.due || 'Hạn'}: {borrowDue}
-            </Text>
-          )}
-          <View style={styles.tagRow}>
-            {bookMock.tags.map((t) => (
-              <View key={t} style={[styles.tag, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-                <Text style={[styles.tagText, { color: colors.text }]}>{t}</Text>
+                <Text
+                  style={[
+                    styles.tagText,
+                    { color: isBorrowed ? '#f39c12' : book.availableCopies > 0 ? '#2ecc71' : '#e74c3c' },
+                  ]}
+                >
+                  {isBorrowed ? strings.borrowed || 'Đã mượn' : book.availableCopies > 0 ? strings.available || 'Available' : strings.unavailable || 'Hết sách'}
+                </Text>
               </View>
-            ))}
+              <View style={[styles.tag, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                <Text style={[styles.tagText, { color: colors.text }]}>
+                  {book.availableCopies || 0} / {book.totalCopies || 0} {strings.copies || 'bản'}
+                </Text>
+              </View>
+            </View>
+            {isBorrowed && borrowDue && (
+              <Text style={[styles.bookMetaCenter, { color: colors.muted }]}>
+                {strings.due || 'Hạn'}: {borrowDue}
+              </Text>
+            )}
+            {book.categories && book.categories.length > 0 && (
+              <View style={styles.tagRow}>
+                {book.categories.map((cat, idx) => (
+                  <View key={idx} style={[styles.tag, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                    <Text style={[styles.tagText, { color: colors.text }]}>{cat}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
-        </View>
 
         {/* Actions */}
         <View style={styles.actionRow}>
@@ -136,7 +248,7 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
               styles.actionChip,
               { backgroundColor: isBorrowed ? colors.inputBg : colors.buttonBg, borderColor: colors.inputBorder, borderWidth: isBorrowed ? 1 : 0 },
             ]}
-            disabled={isBorrowed}
+            disabled={isBorrowed || book.availableCopies <= 0}
             onPress={() => setShowBorrowSheet(true)}
           >
             <Ionicons name="library-outline" size={16} color={isBorrowed ? colors.text : colors.buttonText} />
@@ -150,33 +262,49 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
           </TouchableOpacity>
         </View>
 
-        {/* Sections */}
-        <View style={[styles.sectionCard, { backgroundColor: colors.cardBg, borderColor: colors.inputBorder }]}>
-          {detailSections.map((sec, idx) => {
-            const open = openSections.includes(idx);
-            return (
+          {/* Sections */}
+          <View style={[styles.sectionCard, { backgroundColor: colors.cardBg, borderColor: colors.inputBorder }]}>
+            {book.categories && book.categories.length > 0 && (
               <TouchableOpacity
-                key={sec.title}
-                style={[styles.sectionItem, open && { backgroundColor: colors.inputBg }]}
+                style={[styles.sectionItem, openSections.includes('categories') && { backgroundColor: colors.inputBg }]}
                 activeOpacity={0.85}
                 onPress={() =>
                   setOpenSections((prev) =>
-                    prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
+                    prev.includes('categories') ? prev.filter((i) => i !== 'categories') : [...prev, 'categories']
                   )
                 }
               >
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>{sec.title}</Text>
-                  <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>{strings.categories || 'Danh mục/Thể loại'}</Text>
+                  <Ionicons name={openSections.includes('categories') ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
                 </View>
-                {open && (
-                  <Text style={[styles.sectionContent, { color: colors.muted }]}>{sec.content}</Text>
+                {openSections.includes('categories') && (
+                  <Text style={[styles.sectionContent, { color: colors.muted }]}>{book.categories.join(', ')}</Text>
                 )}
               </TouchableOpacity>
-            );
-          })}
-        </View>
-      </ScrollView>
+            )}
+            {book.description && (
+              <TouchableOpacity
+                style={[styles.sectionItem, openSections.includes('description') && { backgroundColor: colors.inputBg }]}
+                activeOpacity={0.85}
+                onPress={() =>
+                  setOpenSections((prev) =>
+                    prev.includes('description') ? prev.filter((i) => i !== 'description') : [...prev, 'description']
+                  )
+                }
+              >
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>{strings.description || 'Mô tả'}</Text>
+                  <Ionicons name={openSections.includes('description') ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
+                </View>
+                {openSections.includes('description') && (
+                  <Text style={[styles.sectionContent, { color: colors.muted }]}>{book.description}</Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        </ScrollView>
+      )}
 
       {!hideBottomNav && (
         <BottomNav
@@ -208,14 +336,15 @@ export default function BookDetailScreen({ theme, lang, strings, colors, onNavig
                 <Text style={[styles.sheetBtnText, { color: colors.text }]}>{strings.cancel || 'Hủy'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.sheetBtn, { backgroundColor: colors.buttonBg }]}
-                onPress={() => {
-                  setIsBorrowed(true);
-                  setBorrowDue('06/12/2025');
-                  setShowBorrowSheet(false);
-                }}
+                style={[styles.sheetBtn, { backgroundColor: colors.buttonBg, opacity: borrowing ? 0.6 : 1 }]}
+                onPress={handleBorrow}
+                disabled={borrowing}
               >
-                <Text style={[styles.sheetBtnText, { color: colors.buttonText }]}>{strings.confirm || 'Xác nhận'}</Text>
+                {borrowing ? (
+                  <ActivityIndicator size="small" color={colors.buttonText} />
+                ) : (
+                  <Text style={[styles.sheetBtnText, { color: colors.buttonText }]}>{strings.confirm || 'Xác nhận'}</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -570,6 +699,34 @@ const createStyles = (colors) =>
     dropdownText: {
       fontSize: 14,
       fontWeight: '500',
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
+      gap: 12,
+    },
+    loadingText: {
+      fontSize: 16,
+      fontWeight: '500',
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
+      gap: 12,
+    },
+    errorText: {
+      fontSize: 16,
+      fontWeight: '500',
+      textAlign: 'center',
+    },
+    coverImage: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 8,
     },
   });
 
