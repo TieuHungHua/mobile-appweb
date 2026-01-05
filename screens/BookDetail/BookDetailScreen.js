@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,11 +10,13 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   PanResponder,
+  ActivityIndicator,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomNav from "../../components/BottomNav";
 import { createStyles } from "./BookDetail.styles";
-import { bookMock, detailSections } from "./BookDetail.mock";
+import { booksAPI } from "../../utils/api";
 
 export default function BookDetailScreen({
   theme,
@@ -23,8 +25,12 @@ export default function BookDetailScreen({
   colors,
   onNavigate,
   hideBottomNav = false,
+  book: initialBook = null,
 }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const [book, setBook] = useState(initialBook);
+  const [loading, setLoading] = useState(!initialBook);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
   const [recentSearches, setRecentSearches] = useState([
@@ -33,10 +39,153 @@ export default function BookDetailScreen({
     "Kinh tế",
     "Công nghệ AI",
   ]);
-  const [openSections, setOpenSections] = useState([]);
+  const [openSections, setOpenSections] = useState([0]); // Open first section by default
   const [isBorrowed, setIsBorrowed] = useState(false);
   const [borrowDue, setBorrowDue] = useState(null);
   const [showBorrowSheet, setShowBorrowSheet] = useState(false);
+
+  // Load book detail from API
+  const loadBookDetail = useCallback(async () => {
+    if (!initialBook?.id) {
+      setError("Không có thông tin sách");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await booksAPI.getBookById(initialBook.id);
+      console.log("[BookDetail] API Response:", response);
+      
+      // Handle different response structures
+      const bookData = response.data || response;
+      console.log("[BookDetail] Book data:", bookData);
+      console.log("[BookDetail] Book description field:", bookData.description);
+      
+      setBook(bookData);
+    } catch (err) {
+      console.error("Error loading book detail:", err);
+      setError(err.message || "Không thể tải thông tin sách");
+      // Fallback to initial book data if available
+      if (initialBook) {
+        setBook(initialBook);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [initialBook]);
+
+  // Load book detail when component mounts or book changes
+  useEffect(() => {
+    console.log("[BookDetail] initialBook:", initialBook);
+    if (initialBook) {
+      if (initialBook.id) {
+        // If we have ID, load full detail from API
+        console.log("[BookDetail] Loading book detail for ID:", initialBook.id);
+        loadBookDetail();
+      } else {
+        // If we have book data but no ID, use it directly
+        console.log("[BookDetail] Using initial book data directly (no ID)");
+        setBook(initialBook);
+        setLoading(false);
+        setError(null);
+      }
+    } else {
+      // No book data at all
+      console.log("[BookDetail] No book data provided");
+      setLoading(false);
+      setError("Không có thông tin sách");
+    }
+  }, [initialBook?.id, loadBookDetail]);
+
+  // Prepare detail sections from book data
+  const detailSections = useMemo(() => {
+    if (!book) return [];
+    
+    console.log("[BookDetail] Preparing sections from book:", book);
+    console.log("[BookDetail] book.description:", book.description);
+    console.log("[BookDetail] book.desc:", book.desc);
+    console.log("[BookDetail] book.summary:", book.summary);
+    console.log("[BookDetail] book.content:", book.content);
+    
+    const sections = [];
+    
+    // 1. Danh mục/Thể loại section
+    if (book.categories) {
+      const categoriesArray = Array.isArray(book.categories) ? book.categories : [book.categories];
+      if (categoriesArray.length > 0) {
+        const categoriesText = categoriesArray.join(", ");
+        sections.push({
+          title: "Danh mục/Thể loại",
+          content: categoriesText,
+        });
+      } else {
+        sections.push({
+          title: "Danh mục/Thể loại",
+          content: "Không có",
+        });
+      }
+    } else {
+      sections.push({
+        title: "Danh mục/Thể loại",
+        content: "Không có",
+      });
+    }
+    
+    // 2. Mô tả section
+    const description = book.description || book.desc || book.summary || book.content || book.overview;
+    if (description && description.trim()) {
+      sections.push({
+        title: "Mô tả",
+        content: description.trim(),
+      });
+    } else {
+      sections.push({
+        title: "Mô tả",
+        content: "Không có",
+      });
+    }
+
+    // 3. Thông tin chung section
+    const generalInfo = [];
+    if (book.publisher) {
+      generalInfo.push(`• NXB: ${book.publisher}`);
+    } else {
+      generalInfo.push(`• NXB: Không có`);
+    }
+    
+    const publishedYear = book.publicationYear || book.publishedYear;
+    if (publishedYear) {
+      generalInfo.push(`• Năm XB: ${publishedYear}`);
+    } else {
+      generalInfo.push(`• Năm XB: Không có`);
+    }
+    
+    if (book.pages) {
+      generalInfo.push(`• Trang: ${book.pages}`);
+    } else {
+      generalInfo.push(`• Trang: Không có`);
+    }
+    
+    if (book.isbn) {
+      generalInfo.push(`• ISBN: ${book.isbn}`);
+    }
+    
+    sections.push({
+      title: "Thông tin chung",
+      content: generalInfo.join("\n"),
+    });
+
+    return sections;
+  }, [book]);
+
+  // Auto-open first section when book data is loaded
+  useEffect(() => {
+    if (book && detailSections && detailSections.length > 0 && !openSections.includes(0)) {
+      setOpenSections([0]); // Open first section to show description
+    }
+  }, [book, detailSections]);
 
   const basePanResponder = useRef(
     PanResponder.create({
@@ -102,76 +251,87 @@ export default function BookDetailScreen({
       </View>
 
       {/* Content */}
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View
-          style={[
-            styles.bookCard,
-            { backgroundColor: colors.cardBg, borderColor: colors.inputBorder },
-          ]}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.buttonBg} />
+          <Text style={[styles.loadingText, { color: colors.muted }]}>
+            {strings.loading || "Đang tải..."}
+          </Text>
+        </View>
+      ) : error && !book ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color={colors.muted} />
+          <Text style={[styles.errorText, { color: colors.muted }]}>
+            {error}
+          </Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.buttonBg }]}
+            onPress={loadBookDetail}
+          >
+            <Text style={[styles.retryButtonText, { color: colors.buttonText }]}>
+              {strings.retry || "Thử lại"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : book ? (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
         >
           <View
             style={[
-              styles.cover,
-              {
-                backgroundColor: colors.inputBg,
-                borderColor: colors.inputBorder,
-              },
+              styles.bookCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.inputBorder },
             ]}
           >
-            <Ionicons name="book" size={42} color={colors.buttonBg} />
-          </View>
-          <Text style={[styles.bookTitle, { color: colors.text }]}>
-            {bookMock.title}
-          </Text>
-          <Text style={[styles.bookAuthor, { color: colors.muted }]}>
-            {bookMock.author}
-          </Text>
-          <View style={styles.tagRow}>
             <View
               style={[
-                styles.tag,
-                isBorrowed
-                  ? { backgroundColor: "#fef4e6", borderColor: "#f39c12" }
-                  : { backgroundColor: "#e8f5e9", borderColor: "#2ecc71" },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.tagText,
-                  { color: isBorrowed ? "#f39c12" : "#2ecc71" },
-                ]}
-              >
-                {isBorrowed
-                  ? strings.borrowed || "Đã mượn"
-                  : strings.available || "Available"}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.tag,
+                styles.cover,
                 {
                   backgroundColor: colors.inputBg,
                   borderColor: colors.inputBorder,
                 },
               ]}
             >
-              <Text style={[styles.tagText, { color: colors.text }]}>
-                {bookMock.copies}
-              </Text>
+              {book.coverImage ? (
+                <Image
+                  source={{ uri: book.coverImage }}
+                  style={styles.coverImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons name="book" size={42} color={colors.buttonBg} />
+              )}
             </View>
-          </View>
-          {isBorrowed && borrowDue && (
-            <Text style={[styles.bookMetaCenter, { color: colors.muted }]}>
-              {strings.due || "Hạn"}: {borrowDue}
+            <Text style={[styles.bookTitle, { color: colors.text }]}>
+              {book.title || "Không có tiêu đề"}
             </Text>
-          )}
-          <View style={styles.tagRow}>
-            {bookMock.tags.map((t) => (
+            <Text style={[styles.bookAuthor, { color: colors.muted }]}>
+              {book.author || "Không có tác giả"}
+            </Text>
+            <View style={styles.tagRow}>
               <View
-                key={t}
+                style={[
+                  styles.tag,
+                  isBorrowed || (book.status === "không có sẵn" || book.availableCopies === 0)
+                    ? { backgroundColor: "#fef4e6", borderColor: "#f39c12" }
+                    : { backgroundColor: "#e8f5e9", borderColor: "#2ecc71" },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tagText,
+                    { color: isBorrowed || (book.status === "không có sẵn" || book.availableCopies === 0) ? "#f39c12" : "#2ecc71" },
+                  ]}
+                >
+                  {isBorrowed
+                    ? strings.borrowed || "Đã mượn"
+                    : book.status === "có sẵn" || book.availableCopies > 0
+                    ? strings.available || "Có sẵn"
+                    : strings.borrowed || "Không có sẵn"}
+                </Text>
+              </View>
+              <View
                 style={[
                   styles.tag,
                   {
@@ -181,12 +341,38 @@ export default function BookDetailScreen({
                 ]}
               >
                 <Text style={[styles.tagText, { color: colors.text }]}>
-                  {t}
+                  {book.availableCopies !== undefined
+                    ? `${book.availableCopies} bản có sẵn`
+                    : book.status || "N/A"}
                 </Text>
               </View>
-            ))}
+            </View>
+            {isBorrowed && borrowDue && (
+              <Text style={[styles.bookMetaCenter, { color: colors.muted }]}>
+                {strings.due || "Hạn"}: {borrowDue}
+              </Text>
+            )}
+            {book.categories && Array.isArray(book.categories) && book.categories.length > 0 && (
+              <View style={styles.tagRow}>
+                {book.categories.map((category, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.tag,
+                      {
+                        backgroundColor: colors.inputBg,
+                        borderColor: colors.inputBorder,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.tagText, { color: colors.text }]}>
+                      {category}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
-        </View>
 
         {/* Actions */}
         <View style={styles.actionRow}>
@@ -235,14 +421,15 @@ export default function BookDetailScreen({
           </TouchableOpacity>
         </View>
 
-        {/* Sections */}
-        <View
-          style={[
-            styles.sectionCard,
-            { backgroundColor: colors.cardBg, borderColor: colors.inputBorder },
-          ]}
-        >
-          {detailSections.map((sec, idx) => {
+          {/* Sections */}
+          {detailSections.length > 0 && (
+            <View
+              style={[
+                styles.sectionCard,
+                { backgroundColor: colors.cardBg, borderColor: colors.inputBorder },
+              ]}
+            >
+              {detailSections.map((sec, idx) => {
             const open = openSections.includes(idx);
             return (
               <TouchableOpacity
@@ -280,8 +467,10 @@ export default function BookDetailScreen({
               </TouchableOpacity>
             );
           })}
-        </View>
-      </ScrollView>
+            </View>
+          )}
+        </ScrollView>
+      ) : null}
 
       {!hideBottomNav && (
         <BottomNav

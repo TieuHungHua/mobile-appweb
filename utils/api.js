@@ -402,3 +402,60 @@ export const authAPI = {
     return response;
   },
 };
+
+// Books API endpoints
+export const booksAPI = {
+  /**
+   * Get list of books with filters and infinite scroll support
+   * @param {object} params - Query parameters
+   * @param {number} params.limit - Number of books per request (default: 20)
+   * @param {number} params.page - Page number (for infinite scroll, starts at 1)
+   * @param {string} params.search - Search by book title (case insensitive)
+   * @param {string} params.author - Filter by author (case insensitive)
+   * @param {string} params.category - Filter by category
+   * @param {string} params.sortBy - Sort field: "createdAt" | "title" | "author" (default: "createdAt")
+   * @param {string} params.sortOrder - Sort order: "asc" | "desc" (default: "desc")
+   * @returns {Promise<{data: array, pagination: object}>}
+   */
+  getBooks: async (params = {}) => {
+    const {
+      limit = 20,
+      page = 1,
+      search,
+      author,
+      category,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = params;
+
+    // Build query string
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", page.toString());
+    queryParams.append("limit", limit.toString());
+    if (search) queryParams.append("search", search);
+    if (author) queryParams.append("author", author);
+    if (category) queryParams.append("category", category);
+    queryParams.append("sortBy", sortBy);
+    queryParams.append("sortOrder", sortOrder);
+
+    const endpoint = `/books?${queryParams.toString()}`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Get book detail by ID
+   * @param {string} bookId - Book ID
+   * @returns {Promise<object>} Book detail object
+   */
+  getBookById: async (bookId) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    const endpoint = `/books/${bookId}`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+};

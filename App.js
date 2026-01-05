@@ -33,6 +33,7 @@ export default function App() {
   const [theme, setTheme] = useState("light"); // 'light' | 'dark'
   const [lang, setLang] = useState("vi"); // 'vi' | 'en'
   const [booksSearch, setBooksSearch] = useState("");
+  const [selectedBook, setSelectedBook] = useState(null); // Store selected book data for BookDetailScreen
 
   const strings = i18n[lang];
   const colors = useMemo(() => themes[theme], [theme]);
@@ -92,11 +93,13 @@ export default function App() {
         strings={strings}
         colors={colors}
         hideBottomNav={previousScreen === "myBookshelf"}
+        book={selectedBook}
         onNavigate={(key) => {
           if (key === "back" || key === "library") {
             // Navigate back to previous screen
             setCurrentScreen(previousScreen || "books");
             setPreviousScreen(null);
+            setSelectedBook(null);
           } else if (key === "home") {
             setCurrentScreen("home");
             setPreviousScreen(null);
@@ -230,7 +233,7 @@ export default function App() {
         colors={colors}
         searchValue={booksSearch}
         onChangeSearch={setBooksSearch}
-        onNavigate={(key) => {
+        onNavigate={(key, params) => {
           if (key === "home") {
             setCurrentScreen("home");
             setPreviousScreen(null);
@@ -240,6 +243,7 @@ export default function App() {
             setPreviousScreen(null);
           }
           if (key === "bookDetail") {
+            setSelectedBook(params?.book || null);
             setPreviousScreen("books");
             setCurrentScreen("bookDetail");
           }

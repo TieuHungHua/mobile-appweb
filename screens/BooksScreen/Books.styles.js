@@ -72,7 +72,7 @@ export const createStyles = (colors) =>
     listContent: {
       paddingHorizontal: 16,
       paddingTop: 8,
-      paddingBottom: 120,
+      paddingBottom: 100,
       gap: 20,
       flexGrow: 1,
     },
@@ -238,5 +238,58 @@ export const createStyles = (colors) =>
       fontSize: 14,
       textAlign: "center",
       opacity: 0.7,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingVertical: 80,
+    },
+    loadingText: {
+      fontSize: 14,
+      marginTop: 12,
+      fontWeight: "500",
+    },
+    loadMoreContainer: {
+      paddingTop: 12,
+      paddingBottom: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    loadMoreText: {
+      fontSize: 13,
+      fontWeight: "500",
+    },
+    endContainer: {
+      paddingTop: 12,
+      paddingBottom: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    endText: {
+      fontSize: 13,
+      fontWeight: "500",
+      opacity: 0.7,
+    },
+    retryButton: {
+      marginTop: 16,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    retryButtonText: {
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    bookItemWrapper: {
+      marginBottom: 10,
+    },
+    coverImage: {
+      width: "100%",
+      height: "100%",
+      borderRadius: 10,
     },
   });

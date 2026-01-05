@@ -269,4 +269,46 @@ export const createStyles = (colors) =>
       fontSize: 14,
       fontWeight: "500",
     },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingVertical: 80,
+    },
+    loadingText: {
+      fontSize: 14,
+      marginTop: 12,
+      fontWeight: "500",
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingVertical: 80,
+      paddingHorizontal: 40,
+    },
+    errorText: {
+      fontSize: 16,
+      fontWeight: "600",
+      textAlign: "center",
+      marginTop: 16,
+      marginBottom: 8,
+    },
+    retryButton: {
+      marginTop: 16,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    retryButtonText: {
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    coverImage: {
+      width: "100%",
+      height: "100%",
+      borderRadius: 8,
+    },
   });
