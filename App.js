@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { View, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import StartScreen from "./screens/Start/StartScreen";
 import LoginScreen from "./screens/Login/LoginScreen";
@@ -34,6 +35,7 @@ export default function App() {
   const [lang, setLang] = useState("vi"); // 'vi' | 'en'
   const [booksSearch, setBooksSearch] = useState("");
   const [selectedBook, setSelectedBook] = useState(null); // Store selected book data for BookDetailScreen
+  const [navigationStack, setNavigationStack] = useState([]); // Stack for navigation history
 
   const strings = i18n[lang];
   const colors = useMemo(() => themes[theme], [theme]);
@@ -86,38 +88,62 @@ export default function App() {
       />
     );
   } else if (currentScreen === "bookDetail") {
+    // Render both BooksScreen (background) and BookDetailScreen (foreground) to maintain state
     screen = (
-      <BookDetailScreen
-        theme={theme}
-        lang={lang}
-        strings={strings}
-        colors={colors}
-        hideBottomNav={previousScreen === "myBookshelf"}
-        book={selectedBook}
-        onNavigate={(key) => {
-          if (key === "back" || key === "library") {
-            // Navigate back to previous screen
-            setCurrentScreen(previousScreen || "books");
-            setPreviousScreen(null);
-            setSelectedBook(null);
-          } else if (key === "home") {
-            setCurrentScreen("home");
-            setPreviousScreen(null);
-          } else if (key === "settings") {
-            setCurrentScreen("settings");
-            setPreviousScreen(null);
-          } else if (key === "chats") {
-            setCurrentScreen("chats");
-            setPreviousScreen(null);
-          } else if (key === "myBookshelf") {
-            setCurrentScreen("myBookshelf");
-            setPreviousScreen(null);
-          } else {
-            setCurrentScreen(key);
-            setPreviousScreen(null);
-          }
-        }}
-      />
+      <View style={{ flex: 1 }}>
+        {/* Keep BooksScreen mounted in background to preserve state */}
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
+          <BooksScreen
+            theme={theme}
+            lang={lang}
+            strings={strings}
+            colors={colors}
+            searchValue={booksSearch}
+            onChangeSearch={setBooksSearch}
+            onNavigate={() => { }} // Prevent navigation when in background
+          />
+        </View>
+        {/* BookDetailScreen on top */}
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}>
+          <BookDetailScreen
+            theme={theme}
+            lang={lang}
+            strings={strings}
+            colors={colors}
+            hideBottomNav={previousScreen === "myBookshelf"}
+            book={selectedBook}
+            onNavigate={(key) => {
+              if (key === "back" || key === "library") {
+                // Navigate back to previous screen without reloading
+                setCurrentScreen(previousScreen || "books");
+                setPreviousScreen(null);
+                setSelectedBook(null);
+                // Don't clear stack, keep books mounted
+              } else if (key === "home") {
+                setCurrentScreen("home");
+                setPreviousScreen(null);
+                setNavigationStack([]);
+              } else if (key === "settings") {
+                setCurrentScreen("settings");
+                setPreviousScreen(null);
+                setNavigationStack([]);
+              } else if (key === "chats") {
+                setCurrentScreen("chats");
+                setPreviousScreen(null);
+                setNavigationStack([]);
+              } else if (key === "myBookshelf") {
+                setCurrentScreen("myBookshelf");
+                setPreviousScreen(null);
+                setNavigationStack([]);
+              } else {
+                setCurrentScreen(key);
+                setPreviousScreen(null);
+                setNavigationStack([]);
+              }
+            }}
+          />
+        </View>
+      </View>
     );
   } else if (currentScreen === "chats") {
     screen = (
@@ -246,6 +272,8 @@ export default function App() {
             setSelectedBook(params?.book || null);
             setPreviousScreen("books");
             setCurrentScreen("bookDetail");
+            // Add books to navigation stack to keep it mounted
+            setNavigationStack(["books"]);
           }
           if (key === "chats") {
             setCurrentScreen("chats");

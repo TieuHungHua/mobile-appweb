@@ -403,6 +403,188 @@ export const authAPI = {
   },
 };
 
+// User API endpoints
+export const userAPI = {
+  /**
+   * Get current user profile
+   * @returns {Promise<object>} User profile object
+   */
+  getProfile: async () => {
+    const response = await apiRequest("/users/profile", {
+      method: "GET",
+    });
+
+    // Update stored user info
+    if (response.user || response) {
+      const userData = response.user || response;
+      await storeUserInfo(userData);
+      return userData;
+    }
+
+    return response;
+  },
+
+  /**
+   * Update user profile information with file upload support
+   * @param {object} params - Update parameters
+   * @param {string} params.userId - User ID
+   * @param {string} params.displayName - Display name (optional)
+   * @param {string} params.email - Email (optional, must be valid email, unique)
+   * @param {string} params.studentId - Student ID or Lecturer ID (optional)
+   * @param {string} params.classMajor - Class/Major (optional)
+   * @param {string} params.dateOfBirth - Date of birth in YYYY-MM-DD format (optional)
+   * @param {string} params.gender - Gender: "male" | "female" | "other" (optional)
+   * @param {string} params.role - Role: "student" | "admin" | "lecturer" (optional)
+   * @param {string} params.avatarUri - Local URI of avatar image to upload (optional)
+   * @returns {Promise<{user: object}>}
+   */
+  updateProfile: async ({ userId, displayName, email, studentId, classMajor, dateOfBirth, gender, role, avatarUri }) => {
+    const url = `${BASE_URL}/users/${userId}`;
+    const token = await getStoredToken();
+
+    // Create FormData
+    const formData = new FormData();
+
+    // Add text fields (all optional)
+    if (displayName) {
+      formData.append("displayName", displayName);
+    }
+    if (email) {
+      formData.append("email", email);
+    }
+    if (studentId) {
+      formData.append("studentId", studentId);
+    }
+    if (classMajor) {
+      formData.append("classMajor", classMajor);
+    }
+    if (dateOfBirth) {
+      formData.append("dateOfBirth", dateOfBirth);
+    }
+    if (gender) {
+      formData.append("gender", gender);
+    }
+    if (role) {
+      formData.append("role", role);
+    }
+    // Note: Password is not sent in body, authentication is done via Bearer token
+
+    // Add avatar file if provided (only if it's a local URI)
+    if (avatarUri) {
+      // Check if it's a local URI (needs upload) or remote URL (already uploaded)
+      const isLocalUri = avatarUri.startsWith("file://") ||
+        avatarUri.startsWith("content://") ||
+        avatarUri.startsWith("ph://") ||
+        avatarUri.startsWith("/");
+
+      if (isLocalUri) {
+        // Extract file name and type from URI
+        const uriParts = avatarUri.split(".");
+        const fileType = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : "jpg";
+        const fileName = `avatar_${Date.now()}.${fileType}`;
+
+        // For React Native, FormData expects this format
+        const avatarFile = {
+          uri: Platform.OS === "android" ? avatarUri : avatarUri.replace("file://", ""),
+          type: `image/${fileType === "jpg" ? "jpeg" : fileType}`,
+          name: fileName,
+        };
+        formData.append("avatar", avatarFile);
+      } else {
+        console.log("[API] Avatar is already a remote URL, skipping file upload");
+      }
+    }
+
+    // Prepare headers
+    const headers = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    // Don't set Content-Type for FormData, let browser set it with boundary
+
+    try {
+      console.log(`[API] PATCH ${url}`);
+      console.log(`[API] FormData fields:`, {
+        displayName,
+        email,
+        studentId,
+        classMajor,
+        dateOfBirth,
+        gender,
+        role,
+        hasAvatar: !!avatarUri,
+      });
+
+      // Add timeout for fetch (60 seconds for file upload)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      const response = await fetch(url, {
+        method: "PATCH",
+        headers,
+        body: formData,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      // Check if response has content
+      const contentType = response.headers.get("content-type");
+      let data;
+
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { message: text || `HTTP error! status: ${response.status}` };
+        }
+      }
+
+      if (!response.ok) {
+        const errorMessage =
+          data.message || data.error || `HTTP error! status: ${response.status}`;
+        console.error(`[API] Error ${response.status}:`, errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      // Update stored user info after successful update
+      if (data.user) {
+        await storeUserInfo(data.user);
+      }
+
+      return data;
+    } catch (error) {
+      // Handle abort (timeout)
+      if (error.name === "AbortError") {
+        const timeoutError = new Error(
+          "Request timeout. Server không phản hồi sau 60 giây."
+        );
+        console.error("[API] Timeout Error:", timeoutError.message);
+        throw timeoutError;
+      }
+
+      // Handle network errors
+      if (
+        error.message === "Network request failed" ||
+        error.message.includes("Failed to fetch") ||
+        error.name === "TypeError"
+      ) {
+        const networkError = new Error(
+          "Không thể kết nối đến server để cập nhật thông tin."
+        );
+        console.error("[API] Network Error:", networkError.message);
+        throw networkError;
+      }
+
+      console.error("[API] Update Profile Error:", error.message);
+      throw error;
+    }
+  },
+};
+
 // Books API endpoints
 export const booksAPI = {
   /**
@@ -457,5 +639,57 @@ export const booksAPI = {
     return await apiRequest(endpoint, {
       method: "GET",
     });
+  },
+};
+
+// Borrows API endpoints
+export const borrowsAPI = {
+  /**
+   * Borrow a book from the library
+   * @param {object} borrowData - Borrow data
+   * @param {string} borrowData.bookId - Book ID (required, UUID)
+   * @param {string} borrowData.dueAt - Due date in ISO 8601 format (required, must be future date)
+   * @returns {Promise<object>} Borrow object with user, book, dates, and status
+   * @throws {Error} If validation fails, book not available, or already borrowed
+   */
+  borrowBook: async ({ bookId, dueAt }) => {
+    // Validate required fields
+    if (!bookId || bookId.trim() === "") {
+      throw new Error("ID sách không được để trống");
+    }
+
+    if (!dueAt || dueAt.trim() === "") {
+      throw new Error("Ngày hết hạn không được để trống");
+    }
+
+    // Validate UUID format (basic check)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(bookId)) {
+      throw new Error("ID sách không hợp lệ (phải là UUID)");
+    }
+
+    // Validate ISO 8601 date format and future date
+    try {
+      const dueDate = new Date(dueAt);
+      if (isNaN(dueDate.getTime())) {
+        throw new Error("Ngày hết hạn không hợp lệ");
+      }
+      const now = new Date();
+      if (dueDate <= now) {
+        throw new Error("Ngày hết hạn phải là ngày trong tương lai");
+      }
+    } catch (error) {
+      if (error.message.includes("Ngày hết hạn")) {
+        throw error;
+      }
+      throw new Error("Ngày hết hạn không đúng định dạng ISO 8601");
+    }
+
+    const response = await apiRequest("/borrows", {
+      method: "POST",
+      body: JSON.stringify({ bookId, dueAt }),
+    });
+
+    return response;
   },
 };

@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import {
   CHEVRON_ICON_SIZE,
   LOGOUT_BUTTON_ICON_SIZE,
 } from "./Settings.mock";
+import { getStoredUserInfo } from "../../utils/api";
 
 export default function SettingsScreen({
   theme,
@@ -39,6 +40,24 @@ export default function SettingsScreen({
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(
     INITIAL_STATE.autoUpdateEnabled
   );
+  const [userName, setUserName] = useState(USER_INFO.NAME);
+
+  // Load user info from storage
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      try {
+        const userInfo = await getStoredUserInfo();
+        if (userInfo) {
+          // Use name from userInfo if available, otherwise use username
+          const displayName = userInfo.name || userInfo.username || userInfo.fullName || USER_INFO.NAME;
+          setUserName(displayName);
+        }
+      } catch (error) {
+        console.error("Error loading user info:", error);
+      }
+    };
+    loadUserInfo();
+  }, []);
 
   const toggleState = (key) => {
     if (key === "notificationsEnabled") {
@@ -137,7 +156,7 @@ export default function SettingsScreen({
               />
             </View>
             <Text style={[styles.userName, { color: colors.text }]}>
-              {USER_INFO.NAME}
+              {userName}
             </Text>
             <TouchableOpacity
               style={styles.logoutButton}

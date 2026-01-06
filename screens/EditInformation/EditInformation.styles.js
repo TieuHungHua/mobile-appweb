@@ -220,4 +220,20 @@ export const createStyles = (colors) =>
       fontSize: 12,
       marginTop: 5,
     },
+    majorList: {
+      maxHeight: 300,
+      marginVertical: 10,
+    },
+    majorOption: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+    },
+    majorOptionText: {
+      fontSize: 15,
+      flex: 1,
+    },
   });

@@ -13,12 +13,15 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  Alert,
+  Modal,
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import BottomNav from "../../components/BottomNav";
 import { createStyles } from "./Books.styles";
-import { booksAPI } from "../../utils/api";
+import { booksAPI, borrowsAPI } from "../../utils/api";
 
 export default function BooksScreen({
   theme,
@@ -42,6 +45,19 @@ export default function BooksScreen({
   const openRowRef = useRef(null);
   const flatListRef = useRef(null);
   const limit = 20; // Số sách mỗi lần load
+
+  // Borrow states
+  const [showBorrowSheet, setShowBorrowSheet] = useState(false);
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [selectedDueDate, setSelectedDueDate] = useState(() => {
+    // Default to 2 weeks (14 days) from now
+    const date = new Date();
+    date.setDate(date.getDate() + 14);
+    return date;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [borrowing, setBorrowing] = useState(false);
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
 
   useEffect(() => {
     if (
@@ -146,6 +162,141 @@ export default function BooksScreen({
     }
     return books;
   }, [books, tab]);
+
+  // Handle date picker change
+  const handleDateChange = (event, date) => {
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+      if (event.type === "set" && date) {
+        setSelectedDueDate(date);
+      }
+    } else {
+      if (date) {
+        setSelectedDueDate(date);
+      }
+    }
+  };
+
+  // Format date to ISO 8601 string
+  const formatDateToISO = (date) => {
+    return date.toISOString();
+  };
+
+  // Format date for display
+  const formatDateForDisplay = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Handle borrow book
+  const handleBorrow = useCallback(async () => {
+    if (!selectedBook?.id) {
+      Alert.alert("Lỗi", "Không có thông tin sách");
+      return;
+    }
+
+    // Validate date is in the future and not more than 30 days
+    const now = new Date();
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 30);
+
+    if (selectedDueDate <= now) {
+      Alert.alert("Lỗi", "Ngày hết hạn phải là ngày trong tương lai");
+      return;
+    }
+
+    if (selectedDueDate > maxDate) {
+      Alert.alert("Lỗi", "Ngày hết hạn không được quá 1 tháng (30 ngày) kể từ ngày mượn");
+      return;
+    }
+
+    try {
+      setBorrowing(true);
+      const dueAtISO = formatDateToISO(selectedDueDate);
+
+      console.log("[BooksScreen] Borrowing book:", {
+        bookId: selectedBook.id,
+        dueAt: dueAtISO,
+      });
+
+      const result = await borrowsAPI.borrowBook({
+        bookId: selectedBook.id,
+        dueAt: dueAtISO,
+      });
+
+      console.log("[BooksScreen] Borrow success:", result);
+
+      // Update books list immediately
+      setBooks((prevBooks) => {
+        return prevBooks.map((b) => {
+          if (b.id === selectedBook.id) {
+            return {
+              ...b,
+              availableCopies: Math.max(0, (b.availableCopies || 0) - 1),
+              status: (b.availableCopies || 0) <= 1 ? "không có sẵn" : b.status,
+              isBorrowed: true, // Mark as borrowed by current user
+            };
+          }
+          return b;
+        });
+      });
+
+      // Close sheet
+      setShowBorrowSheet(false);
+      setSelectedBook(null);
+
+      // Refresh books list to get updated data from server
+      await loadBooks(1, false);
+
+      // Show success message
+      Alert.alert(
+        "Thành công",
+        `Đã mượn sách "${selectedBook.title}" thành công!\nHạn trả: ${formatDateForDisplay(result.dueAt)}\nBạn nhận được 10 điểm thưởng.`,
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error("[BooksScreen] Borrow error:", error);
+
+      let errorMessage = "Không thể mượn sách. Vui lòng thử lại.";
+
+      if (error.message) {
+        if (error.message.includes("không còn bản sao")) {
+          errorMessage = "Sách hiện không còn bản sao có sẵn";
+        } else if (error.message.includes("đang mượn")) {
+          errorMessage = "Bạn đang mượn sách này rồi";
+        } else if (error.message.includes("không tồn tại")) {
+          errorMessage = "Sách không tồn tại";
+        } else if (error.message.includes("Unauthorized")) {
+          errorMessage = "Vui lòng đăng nhập để mượn sách";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      Alert.alert("Lỗi", errorMessage);
+    } finally {
+      setBorrowing(false);
+    }
+  }, [selectedBook, selectedDueDate, loadBooks]);
+
+  // Open borrow sheet
+  const openBorrowSheet = useCallback((book) => {
+    setSelectedBook(book);
+    setShowBorrowSheet(true);
+    setAgreeToTerms(false); // Reset terms agreement
+    // Reset date to default (14 days from now)
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 14);
+    setSelectedDueDate(defaultDate);
+  }, []);
 
   return (
     <View
@@ -371,22 +522,39 @@ export default function BooksScreen({
                   <TouchableOpacity
                     style={[
                       styles.swipeBtn,
-                      { backgroundColor: colors.buttonBg },
+                      {
+                        backgroundColor: b.isBorrowed
+                          ? colors.inputBg
+                          : colors.buttonBg,
+                        opacity: b.isBorrowed || (b.availableCopies <= 0 && b.status !== "có sẵn") ? 0.5 : 1,
+                      },
                     ]}
+                    onPress={() => {
+                      if (b.isBorrowed || (b.availableCopies <= 0 && b.status !== "có sẵn")) {
+                        return;
+                      }
+                      openRowRef.current?.close();
+                      openBorrowSheet(b);
+                    }}
+                    disabled={b.isBorrowed || (b.availableCopies <= 0 && b.status !== "có sẵn")}
                   >
                     <Ionicons
                       name="library-outline"
                       size={18}
-                      color={colors.buttonText}
+                      color={b.isBorrowed ? colors.text : colors.buttonText}
                     />
                     <Text
                       style={[
                         styles.swipeText,
-                        { color: colors.buttonText },
+                        {
+                          color: b.isBorrowed ? colors.text : colors.buttonText,
+                        },
                       ]}
                       numberOfLines={1}
                     >
-                      {strings.borrow || "Mượn"}
+                      {b.isBorrowed
+                        ? strings.borrowed || "Đã mượn"
+                        : strings.borrow || "Mượn"}
                     </Text>
                   </TouchableOpacity>
                 </Animated.View>
@@ -466,9 +634,11 @@ export default function BooksScreen({
                             styles.statusBadge,
                             {
                               backgroundColor:
-                                b.status === "có sẵn" || b.availableCopies > 0
-                                  ? "#2ecc71" + "20"
-                                  : colors.inputBg,
+                                b.isBorrowed
+                                  ? "#f39c12" + "20"
+                                  : b.status === "có sẵn" || b.availableCopies > 0
+                                    ? "#2ecc71" + "20"
+                                    : colors.inputBg,
                             },
                           ]}
                         >
@@ -477,9 +647,11 @@ export default function BooksScreen({
                               styles.statusDot,
                               {
                                 backgroundColor:
-                                  b.status === "có sẵn" || b.availableCopies > 0
-                                    ? "#2ecc71"
-                                    : colors.muted,
+                                  b.isBorrowed
+                                    ? "#f39c12"
+                                    : b.status === "có sẵn" || b.availableCopies > 0
+                                      ? "#2ecc71"
+                                      : colors.muted,
                               },
                             ]}
                           />
@@ -488,15 +660,19 @@ export default function BooksScreen({
                               styles.statusText,
                               {
                                 color:
-                                  b.status === "có sẵn" || b.availableCopies > 0
-                                    ? "#2ecc71"
-                                    : colors.muted,
+                                  b.isBorrowed
+                                    ? "#f39c12"
+                                    : b.status === "có sẵn" || b.availableCopies > 0
+                                      ? "#2ecc71"
+                                      : colors.muted,
                               },
                             ]}
                           >
-                            {b.status === "có sẵn" || b.availableCopies > 0
-                              ? strings.available || "Có sẵn"
-                              : strings.borrowed || "Không có sẵn"}
+                            {b.isBorrowed
+                              ? strings.borrowed || "Đã mượn"
+                              : b.status === "có sẵn" || b.availableCopies > 0
+                                ? strings.available || "Có sẵn"
+                                : strings.borrowed || "Không có sẵn"}
                           </Text>
                         </View>
                       </View>
@@ -525,6 +701,260 @@ export default function BooksScreen({
           settings: "Settings",
         }}
       />
+
+      {/* Borrow bottom sheet */}
+      {showBorrowSheet && selectedBook && (
+        <View
+          style={[styles.sheetOverlay, { backgroundColor: "rgba(0,0,0,0.45)" }]}
+        >
+          <TouchableOpacity
+            style={styles.sheetOverlay}
+            activeOpacity={1}
+            onPress={() => !borrowing && setShowBorrowSheet(false)}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+              style={[
+                styles.sheetCard,
+                {
+                  backgroundColor: colors.cardBg,
+                  borderColor: colors.inputBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.sheetTitle, { color: colors.text }]}>
+                {strings.borrow || "Mượn sách"}
+              </Text>
+              <Text style={[styles.sheetText, { color: colors.muted }]}>
+                {strings.confirmBorrow || "Thời hạn mượn sách mặc định là 14 ngày kể từ ngày mượn. Bạn có thể chọn ngày hết hạn khác (tối đa 30 ngày)."}
+              </Text>
+
+              {/* Book Info */}
+              <View style={styles.sheetBookInfo}>
+                <Text style={[styles.sheetBookTitle, { color: colors.text }]}>
+                  {selectedBook.title}
+                </Text>
+                <Text style={[styles.sheetBookAuthor, { color: colors.muted }]}>
+                  {selectedBook.author}
+                </Text>
+              </View>
+
+              {/* Date Picker Section */}
+              <View style={styles.datePickerSection}>
+                <Text style={[styles.datePickerLabel, { color: colors.text }]}>
+                  Ngày hết hạn:
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.datePickerButton,
+                    {
+                      backgroundColor: colors.inputBg,
+                      borderColor: colors.inputBorder,
+                    },
+                  ]}
+                  onPress={() => setShowDatePicker(true)}
+                  disabled={borrowing}
+                >
+                  <Ionicons name="calendar-outline" size={18} color={colors.text} />
+                  <Text style={[styles.datePickerText, { color: colors.text }]}>
+                    {formatDateForDisplay(selectedDueDate.toISOString())} ({Math.ceil((selectedDueDate - new Date()) / (1000 * 60 * 60 * 24))} ngày)
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.muted} />
+                </TouchableOpacity>
+                <Text style={[styles.datePickerHint, { color: colors.muted }]}>
+                  Mặc định: 14 ngày kể từ ngày mượn (tối đa: 30 ngày)
+                </Text>
+              </View>
+
+              {/* Terms Agreement */}
+              <View style={styles.termsSection}>
+                <TouchableOpacity
+                  style={styles.termsCheckbox}
+                  onPress={() => setAgreeToTerms(!agreeToTerms)}
+                  disabled={borrowing}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      {
+                        backgroundColor: agreeToTerms
+                          ? colors.buttonBg
+                          : "transparent",
+                        borderColor: agreeToTerms
+                          ? colors.buttonBg
+                          : colors.inputBorder,
+                      },
+                    ]}
+                  >
+                    {agreeToTerms && (
+                      <Ionicons
+                        name="checkmark"
+                        size={16}
+                        color={colors.buttonText}
+                      />
+                    )}
+                  </View>
+                  <Text style={[styles.termsText, { color: colors.text }]}>
+                    Tôi đồng ý với{" "}
+                    <Text
+                      style={[styles.termsLink, { color: colors.buttonBg }]}
+                      onPress={() => {
+                        // Có thể mở modal điều khoản hoặc navigate đến trang điều khoản
+                        Alert.alert(
+                          "Điều khoản mượn sách",
+                          "1. Sách phải được trả đúng hạn\n2. Nếu trả trễ sẽ bị trừ điểm\n3. Phải giữ gìn sách cẩn thận\n4. Nếu làm mất hoặc hư hỏng sách sẽ phải bồi thường\n5. Mỗi lần mượn tối đa 30 ngày",
+                          [{ text: "Đã hiểu" }]
+                        );
+                      }}
+                    >
+                      điều khoản mượn sách
+                    </Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.sheetActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.sheetBtn,
+                    {
+                      backgroundColor: colors.inputBg,
+                      borderColor: colors.inputBorder,
+                      borderWidth: 1,
+                      opacity: borrowing ? 0.5 : 1,
+                    },
+                  ]}
+                  onPress={() => {
+                    setShowBorrowSheet(false);
+                    setSelectedBook(null);
+                    setAgreeToTerms(false);
+                  }}
+                  disabled={borrowing}
+                >
+                  <Text style={[styles.sheetBtnText, { color: colors.text }]}>
+                    {strings.cancel || "Hủy"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.sheetBtn,
+                    {
+                      backgroundColor: colors.buttonBg,
+                      opacity: borrowing ? 0.5 : 1,
+                    },
+                  ]}
+                  onPress={handleBorrow}
+                  disabled={borrowing || !agreeToTerms}
+                >
+                  {borrowing ? (
+                    <ActivityIndicator size="small" color={colors.buttonText} />
+                  ) : (
+                    <Text
+                      style={[styles.sheetBtnText, { color: colors.buttonText }]}
+                    >
+                      {strings.confirm || "Xác nhận"}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <Modal
+          transparent={true}
+          animationType="fade"
+          visible={showDatePicker}
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowDatePicker(false)}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+              style={[
+                styles.modalContent,
+                {
+                  backgroundColor: colors.cardBg,
+                  borderColor: colors.inputBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Chọn ngày hết hạn
+              </Text>
+              {Platform.OS === "ios" && (
+                <DateTimePicker
+                  value={selectedDueDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={handleDateChange}
+                  minimumDate={new Date()}
+                  maximumDate={(() => {
+                    const maxDate = new Date();
+                    maxDate.setDate(maxDate.getDate() + 30);
+                    return maxDate;
+                  })()}
+                  style={styles.datePickerIOS}
+                />
+              )}
+              {Platform.OS === "android" && (
+                <DateTimePicker
+                  value={selectedDueDate}
+                  mode="date"
+                  display="default"
+                  onChange={handleDateChange}
+                  minimumDate={new Date()}
+                  maximumDate={(() => {
+                    const maxDate = new Date();
+                    maxDate.setDate(maxDate.getDate() + 30);
+                    return maxDate;
+                  })()}
+                />
+              )}
+              {Platform.OS === "ios" && (
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalBtn,
+                      {
+                        backgroundColor: colors.inputBg,
+                        borderColor: colors.inputBorder,
+                        borderWidth: 1,
+                      },
+                    ]}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text style={[styles.modalBtnText, { color: colors.text }]}>
+                      Hủy
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalBtn,
+                      { backgroundColor: colors.buttonBg },
+                    ]}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text
+                      style={[styles.modalBtnText, { color: colors.buttonText }]}
+                    >
+                      Xác nhận
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </View>
   );
 }
