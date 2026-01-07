@@ -644,6 +644,95 @@ export const booksAPI = {
   },
 };
 
+// Comments API endpoints
+export const commentsAPI = {
+  /**
+   * Get list of comments for a book
+   * @param {string} bookId - Book ID
+   * @param {object} params - Query parameters
+   * @param {number} params.page - Page number (default: 1)
+   * @param {number} params.limit - Number of comments per page (default: 10)
+   * @returns {Promise<{data: array, pagination: object}>}
+   */
+  getComments: async (bookId, params = {}) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    const { page = 1, limit = 10 } = params;
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", page.toString());
+    queryParams.append("limit", limit.toString());
+
+    const endpoint = `/books/${bookId}/comments?${queryParams.toString()}`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Add a comment to a book
+   * @param {string} bookId - Book ID
+   * @param {string} content - Comment content
+   * @returns {Promise<object>} Comment object
+   */
+  addComment: async (bookId, content) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    if (!content || content.trim() === "") {
+      throw new Error("Nội dung bình luận không được để trống");
+    }
+    const endpoint = `/books/${bookId}/comments`;
+    return await apiRequest(endpoint, {
+      method: "POST",
+      body: JSON.stringify({ content: content.trim() }),
+    });
+  },
+
+  /**
+   * Update a comment
+   * @param {string} bookId - Book ID
+   * @param {string} commentId - Comment ID
+   * @param {string} content - Updated comment content
+   * @returns {Promise<object>} Updated comment object
+   */
+  updateComment: async (bookId, commentId, content) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    if (!commentId) {
+      throw new Error("Comment ID is required");
+    }
+    if (!content || content.trim() === "") {
+      throw new Error("Nội dung bình luận không được để trống");
+    }
+    const endpoint = `/books/${bookId}/comments/${commentId}`;
+    return await apiRequest(endpoint, {
+      method: "PUT",
+      body: JSON.stringify({ content: content.trim() }),
+    });
+  },
+
+  /**
+   * Delete a comment
+   * @param {string} bookId - Book ID
+   * @param {string} commentId - Comment ID
+   * @returns {Promise<object>} Success message
+   */
+  deleteComment: async (bookId, commentId) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    if (!commentId) {
+      throw new Error("Comment ID is required");
+    }
+    const endpoint = `/books/${bookId}/comments/${commentId}`;
+    return await apiRequest(endpoint, {
+      method: "DELETE",
+    });
+  },
+};
+
 // Borrows API endpoints
 export const borrowsAPI = {
   /**
@@ -726,17 +815,37 @@ export const borrowsAPI = {
   /**
    * Renew a borrowed book
    * @param {string} borrowId - Borrow record ID
-   * @param {string} newDueAt - Optional new due date (ISO 8601)
+   * @param {number} days - Number of days to extend (1-30 days)
    */
-  renewBorrow: async (borrowId, newDueAt) => {
+  renewBorrow: async (borrowId, days) => {
     if (!borrowId) {
       throw new Error("Borrow ID is required");
     }
+    if (!days || days < 1 || days > 30) {
+      throw new Error("Số ngày gia hạn phải từ 1 đến 30 ngày");
+    }
+    // Theo tài liệu API: POST /borrows/:id/renew
     const endpoint = `/borrows/${borrowId}/renew`;
-    const body = newDueAt ? { newDueAt } : {};
+    const body = { days };
+    console.log(`[API] Renew borrow: ${endpoint}`, { borrowId, days, body });
     return await apiRequest(endpoint, {
       method: "POST",
       body: JSON.stringify(body),
+    });
+  },
+
+  /**
+   * Return a borrowed book
+   * @param {string} borrowId - Borrow record ID
+   * @returns {Promise<object>} Updated borrow object with returned status
+   */
+  returnBook: async (borrowId) => {
+    if (!borrowId) {
+      throw new Error("Borrow ID is required");
+    }
+    const endpoint = `/borrows/${borrowId}/return`;
+    return await apiRequest(endpoint, {
+      method: "POST",
     });
   },
 };

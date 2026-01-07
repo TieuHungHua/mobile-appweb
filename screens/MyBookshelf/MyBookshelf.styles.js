@@ -128,13 +128,22 @@ export const createStyles = (colors) =>
       fontWeight: "600",
     },
     renewButton: {
-      marginTop: 8,
       paddingVertical: 10,
       paddingHorizontal: 16,
       borderRadius: 8,
       alignItems: "center",
     },
     renewButtonText: {
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    returnButton: {
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    returnButtonText: {
       fontSize: 14,
       fontWeight: "600",
     },

@@ -5,6 +5,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   TextInput,
   Platform,
   Keyboard,
@@ -19,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import BottomNav from "../../components/BottomNav";
 import { createStyles } from "./BookDetail.styles";
-import { booksAPI, borrowsAPI } from "../../utils/api";
+import { booksAPI, borrowsAPI, commentsAPI, getStoredUserInfo } from "../../utils/api";
 
 export default function BookDetailScreen({
   theme,
@@ -59,6 +60,17 @@ export default function BookDetailScreen({
   const [isSaved, setIsSaved] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  
+  // Comments state
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentPage, setCommentPage] = useState(1);
+  const [hasMoreComments, setHasMoreComments] = useState(true);
+  const [commentContent, setCommentContent] = useState("");
+  const [editingComment, setEditingComment] = useState(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   // Load book detail from API
   const loadBookDetail = useCallback(async () => {
@@ -371,6 +383,197 @@ export default function BookDetailScreen({
     //     Alert.alert("Lỗi", "Không thể lưu sách. Vui lòng thử lại.");
     //   });
   }, [book, isSaved]);
+
+  // Load comments
+  const loadComments = useCallback(async (page = 1, append = false) => {
+    if (!book?.id) return;
+    try {
+      setCommentsLoading(true);
+      const response = await commentsAPI.getComments(book.id, { page, limit: 10 });
+      const commentsList = response.data || [];
+      const pagination = response.pagination || {};
+      
+      if (append) {
+        setComments((prev) => [...prev, ...commentsList]);
+      } else {
+        setComments(commentsList);
+      }
+      
+      setHasMoreComments(
+        pagination.page < pagination.totalPages && commentsList.length > 0
+      );
+      setCommentPage(page);
+    } catch (err) {
+      console.error("[BookDetail] Load comments error:", err);
+      if (!append) {
+        setComments([]);
+      }
+    } finally {
+      setCommentsLoading(false);
+    }
+  }, [book?.id]);
+
+  // Load current user ID
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      try {
+        const userInfo = await getStoredUserInfo();
+        const userId = userInfo?.id || null;
+        setCurrentUserId(userId);
+        console.log("[BookDetail] Loaded user ID:", userId, "User info:", userInfo);
+      } catch (err) {
+        console.error("[BookDetail] Load user info error:", err);
+      }
+    };
+    loadUserInfo();
+  }, []);
+
+  // Load comments when book is loaded
+  useEffect(() => {
+    if (book?.id) {
+      loadComments(1, false);
+    }
+  }, [book?.id, loadComments]);
+
+  // Check if user has already commented
+  const hasUserCommented = useMemo(() => {
+    if (!currentUserId || comments.length === 0) return false;
+    return comments.some((comment) => String(comment.user?.id) === String(currentUserId));
+  }, [comments, currentUserId]);
+
+  // Get user's existing comment
+  const userComment = useMemo(() => {
+    if (!currentUserId || comments.length === 0) return null;
+    return comments.find((comment) => String(comment.user?.id) === String(currentUserId)) || null;
+  }, [comments, currentUserId]);
+
+  // Add comment
+  const handleAddComment = async () => {
+    if (!book?.id || !commentContent.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập nội dung bình luận");
+      return;
+    }
+
+    try {
+      setSubmittingComment(true);
+      const newComment = await commentsAPI.addComment(book.id, commentContent.trim());
+      setComments((prev) => [newComment, ...prev]);
+      setCommentContent("");
+      Alert.alert("Thành công", "Đã thêm bình luận");
+    } catch (err) {
+      console.error("[BookDetail] Add comment error:", err);
+      Alert.alert("Lỗi", err.message || "Không thể thêm bình luận");
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  // Start editing comment
+  const handleStartEdit = (comment) => {
+    setEditingComment(comment.id);
+    setEditCommentContent(comment.content);
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingComment(null);
+    setEditCommentContent("");
+  };
+
+  // Update comment
+  const handleUpdateComment = async (commentId) => {
+    if (!book?.id || !editCommentContent.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập nội dung bình luận");
+      return;
+    }
+
+    try {
+      setSubmittingComment(true);
+      const updatedComment = await commentsAPI.updateComment(
+        book.id,
+        commentId,
+        editCommentContent.trim()
+      );
+      setComments((prev) =>
+        prev.map((c) => (c.id === commentId ? updatedComment : c))
+      );
+      setEditingComment(null);
+      setEditCommentContent("");
+      Alert.alert("Thành công", "Đã cập nhật bình luận");
+    } catch (err) {
+      console.error("[BookDetail] Update comment error:", err);
+      Alert.alert("Lỗi", err.message || "Không thể cập nhật bình luận");
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  // Delete comment
+  const handleDeleteComment = (commentId) => {
+    Alert.alert(
+      "Xác nhận",
+      "Bạn có chắc chắn muốn xóa bình luận này?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xóa",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setSubmittingComment(true);
+              await commentsAPI.deleteComment(book.id, commentId);
+              setComments((prev) => prev.filter((c) => c.id !== commentId));
+              Alert.alert("Thành công", "Đã xóa bình luận");
+            } catch (err) {
+              console.error("[BookDetail] Delete comment error:", err);
+              Alert.alert("Lỗi", err.message || "Không thể xóa bình luận");
+            } finally {
+              setSubmittingComment(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Check if current user is comment owner
+  const isCommentOwner = (commentUserId) => {
+    // So sánh cả string và number để tránh lỗi type mismatch
+    const isOwner = String(currentUserId) === String(commentUserId);
+    console.log("[BookDetail] isCommentOwner check:", {
+      currentUserId,
+      commentUserId,
+      isOwner,
+      currentUserIdType: typeof currentUserId,
+      commentUserIdType: typeof commentUserId,
+    });
+    return isOwner;
+  };
+
+  // Format date for display
+  const formatCommentDate = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 1) return "Vừa xong";
+      if (diffMins < 60) return `${diffMins} phút trước`;
+      if (diffHours < 24) return `${diffHours} giờ trước`;
+      if (diffDays < 7) return `${diffDays} ngày trước`;
+
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch {
+      return dateString;
+    }
+  };
 
   // Prepare detail sections from book data
   const detailSections = useMemo(() => {
@@ -824,6 +1027,205 @@ export default function BookDetailScreen({
                   </TouchableOpacity>
                 );
               })}
+            </View>
+          )}
+
+          {/* Comments Section */}
+          {book && (
+            <View style={styles.commentsSection}>
+              <Text style={[styles.commentsTitle, { color: colors.text }]}>
+                Bình luận ({comments.length})
+              </Text>
+
+              {/* Add Comment Form - Chỉ hiện khi chưa bình luận */}
+              {!hasUserCommented && (
+                <View style={[styles.commentForm, { borderColor: colors.inputBorder }]}>
+                  <TextInput
+                    style={[styles.commentInput, { color: colors.text, backgroundColor: colors.inputBg }]}
+                    placeholder="Viết bình luận của bạn..."
+                    placeholderTextColor={colors.placeholder}
+                    value={commentContent}
+                    onChangeText={setCommentContent}
+                    multiline
+                    numberOfLines={3}
+                    editable={!submittingComment}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.commentSubmitBtn,
+                      { backgroundColor: colors.buttonBg },
+                      submittingComment && styles.commentSubmitBtnDisabled,
+                    ]}
+                    onPress={handleAddComment}
+                    disabled={submittingComment || !commentContent.trim()}
+                  >
+                    {submittingComment ? (
+                      <ActivityIndicator size="small" color={colors.buttonText} />
+                    ) : (
+                      <Text style={[styles.commentSubmitText, { color: colors.buttonText }]}>
+                        Gửi
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Thông báo nếu đã bình luận */}
+              {hasUserCommented && userComment && (
+                <View style={[styles.commentInfoBox, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                  <Ionicons name="information-circle-outline" size={20} color={colors.buttonBg} />
+                  <Text style={[styles.commentInfoText, { color: colors.text }]}>
+                    Bạn đã bình luận cho sách này. Nhấn giữ vào bình luận của bạn để chỉnh sửa hoặc xóa.
+                  </Text>
+                </View>
+              )}
+
+              {/* Comments List */}
+              {commentsLoading && comments.length === 0 ? (
+                <View style={styles.commentsLoading}>
+                  <ActivityIndicator size="small" color={colors.buttonBg} />
+                  <Text style={[styles.commentsLoadingText, { color: colors.muted }]}>
+                    Đang tải bình luận...
+                  </Text>
+                </View>
+              ) : comments.length === 0 ? (
+                <View style={styles.commentsEmpty}>
+                  <Ionicons name="chatbubble-outline" size={48} color={colors.muted} />
+                  <Text style={[styles.commentsEmptyText, { color: colors.muted }]}>
+                    Chưa có bình luận nào
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.commentsList}>
+                  {comments.map((comment) => (
+                    <Pressable
+                      key={comment.id}
+                      style={({ pressed }) => [
+                        styles.commentItem,
+                        { borderColor: colors.inputBorder },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                      delayLongPress={300}
+                      onLongPress={() => {
+                        // Debug: Log để kiểm tra
+                        const commentUserId = comment.user?.id;
+                        const isOwner = isCommentOwner(commentUserId);
+                        
+                        console.log("[BookDetail] Long press comment:", {
+                          commentUserId,
+                          currentUserId,
+                          isOwner,
+                          commentUser: comment.user,
+                        });
+                        
+                        // Chỉ hiện menu khi là owner
+                        if (isOwner) {
+                          Alert.alert(
+                            "Tùy chọn",
+                            "Chọn hành động",
+                            [
+                              {
+                                text: "Chỉnh sửa",
+                                onPress: () => handleStartEdit(comment),
+                              },
+                              {
+                                text: "Xóa",
+                                style: "destructive",
+                                onPress: () => handleDeleteComment(comment.id),
+                              },
+                              {
+                                text: "Hủy",
+                                style: "cancel",
+                              },
+                            ],
+                            { cancelable: true }
+                          );
+                        } else {
+                          // Debug: Hiện thông báo nếu không phải owner
+                          console.log("[BookDetail] Not owner, cannot edit/delete");
+                          Alert.alert("Thông báo", "Bạn chỉ có thể chỉnh sửa hoặc xóa bình luận của chính mình");
+                        }
+                      }}
+                    >
+                      <View style={styles.commentHeader}>
+                        <View style={styles.commentUserInfo}>
+                          {comment.user?.avatar ? (
+                            <Image
+                              source={{ uri: comment.user.avatar }}
+                              style={styles.commentAvatar}
+                            />
+                          ) : (
+                            <View style={[styles.commentAvatar, { backgroundColor: colors.inputBg }]}>
+                              <Ionicons name="person" size={20} color={colors.muted} />
+                            </View>
+                          )}
+                          <View style={styles.commentUserDetails}>
+                            <Text style={[styles.commentUserName, { color: colors.text }]}>
+                              {comment.user?.displayName || comment.user?.username || "Người dùng"}
+                            </Text>
+                            <Text style={[styles.commentDate, { color: colors.muted }]}>
+                              {formatCommentDate(comment.createdAt)}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {editingComment === comment.id ? (
+                        <View style={styles.commentEditForm}>
+                          <TextInput
+                            style={[styles.commentEditInput, { color: colors.text, backgroundColor: colors.inputBg }]}
+                            value={editCommentContent}
+                            onChangeText={setEditCommentContent}
+                            multiline
+                            numberOfLines={3}
+                            editable={!submittingComment}
+                          />
+                          <View style={styles.commentEditActions}>
+                            <TouchableOpacity
+                              style={[styles.commentEditBtn, { backgroundColor: colors.inputBg }]}
+                              onPress={handleCancelEdit}
+                              disabled={submittingComment}
+                            >
+                              <Text style={[styles.commentEditBtnText, { color: colors.text }]}>
+                                Hủy
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={[styles.commentEditBtn, { backgroundColor: colors.buttonBg }]}
+                              onPress={() => handleUpdateComment(comment.id)}
+                              disabled={submittingComment || !editCommentContent.trim()}
+                            >
+                              {submittingComment ? (
+                                <ActivityIndicator size="small" color={colors.buttonText} />
+                              ) : (
+                                <Text style={[styles.commentEditBtnText, { color: colors.buttonText }]}>
+                                  Lưu
+                                </Text>
+                              )}
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ) : (
+                        <Text style={[styles.commentContent, { color: colors.text }]}>
+                          {comment.content}
+                        </Text>
+                      )}
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
+              {/* Load More Comments */}
+              {hasMoreComments && !commentsLoading && (
+                <TouchableOpacity
+                  style={styles.loadMoreCommentsBtn}
+                  onPress={() => loadComments(commentPage + 1, true)}
+                >
+                  <Text style={[styles.loadMoreCommentsText, { color: colors.buttonBg }]}>
+                    Xem thêm bình luận
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </ScrollView>

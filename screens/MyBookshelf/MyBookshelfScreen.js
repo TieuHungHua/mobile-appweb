@@ -24,10 +24,6 @@ import {
 import { PanResponder } from "react-native";
 import { booksAPI, borrowsAPI } from "../../utils/api";
 
-// Debug: Check if APIs are imported correctly
-console.log("[MyBookshelf] booksAPI:", typeof booksAPI, booksAPI ? Object.keys(booksAPI) : "undefined");
-console.log("[MyBookshelf] borrowsAPI:", typeof borrowsAPI, borrowsAPI ? Object.keys(borrowsAPI) : "undefined");
-
 export default function MyBookshelfScreen({
   theme,
   lang,
@@ -80,6 +76,13 @@ export default function MyBookshelfScreen({
     let books = [];
     if (currentTab === TABS.BORROWED) {
       books = borrowedBooks;
+      // Sắp xếp: sách đang mượn (active) trước, sách đã trả (returned) sau
+      books = [...books].sort((a, b) => {
+        const aIsReturned = a.isReturned || a.status === "returned";
+        const bIsReturned = b.isReturned || b.status === "returned";
+        if (aIsReturned === bIsReturned) return 0;
+        return aIsReturned ? 1 : -1; // returned = true sẽ xếp sau
+      });
     } else if (currentTab === TABS.FAVORITES) {
       books = favoriteBooks;
     } else if (currentTab === TABS.SAVED) {
@@ -115,22 +118,41 @@ export default function MyBookshelfScreen({
       const { silent = false } = opts;
       if (!silent) setLoading(true);
       try {
-        const res = await borrowsAPI.getBorrows({
-          page: 1,
-          limit: 50,
-          search: searchQuery.trim() || undefined,
-          status: "active",
-        });
-        const list = res.data || res || [];
-        const mapped = list.map((item) => {
+        // Load cả sách đang mượn và đã trả
+        const [activeRes, returnedRes] = await Promise.all([
+          borrowsAPI.getBorrows({
+            page: 1,
+            limit: 50,
+            search: searchQuery.trim() || undefined,
+            status: "active",
+          }),
+          borrowsAPI.getBorrows({
+            page: 1,
+            limit: 50,
+            search: searchQuery.trim() || undefined,
+            status: "returned",
+          }),
+        ]);
+        
+        const activeList = activeRes.data || activeRes || [];
+        const returnedList = returnedRes.data || returnedRes || [];
+        // Sắp xếp: sách đang mượn trước, sách đã trả sau
+        const allList = [...activeList, ...returnedList];
+        
+        const mapped = allList.map((item) => {
           const book = item.book || {};
           const dueAt = item.dueAt || item.due_at || item.borrowDue;
-          const daysLeft =
-            item.daysLeft !== undefined
-              ? item.daysLeft
-              : Math.ceil(
-                  (new Date(dueAt) - new Date()) / (1000 * 60 * 60 * 24)
-                );
+          const returnedAt = item.returnedAt || item.returned_at;
+          const isReturned = item.status === "returned" || !!returnedAt;
+          
+          const daysLeft = isReturned
+            ? null
+            : item.daysLeft !== undefined
+            ? item.daysLeft
+            : Math.ceil(
+                (new Date(dueAt) - new Date()) / (1000 * 60 * 60 * 24)
+              );
+          
           return {
             id: item.id,
             bookId: item.bookId || book.id,
@@ -138,10 +160,14 @@ export default function MyBookshelfScreen({
             author: book.author,
             cover: book.coverImage,
             expirationDate: formatDateDisplay(dueAt),
+            returnedDate: formatDateDisplay(returnedAt),
             daysLeft,
-            status: item.status || (daysLeft < 0 ? "expired" : "active"),
-            isExpired: item.isExpired ?? daysLeft < 0,
+            status: item.status || (isReturned ? "returned" : daysLeft < 0 ? "expired" : "active"),
+            isExpired: item.isExpired ?? (daysLeft !== null && daysLeft < 0),
+            isReturned,
             canRenew: item.canRenew ?? true,
+            renewCount: item.renewCount || 0,
+            maxRenewCount: item.maxRenewCount || 1,
           };
         });
         setBorrowedBooks(mapped);
@@ -249,18 +275,116 @@ export default function MyBookshelfScreen({
   };
 
   const handleRenew = async (borrowId) => {
-    try {
-      const res = await borrowsAPI.renewBorrow(borrowId);
-      Alert.alert("Thành công", "Đã gia hạn sách");
-      await loadBorrowed({ silent: true });
-      return res;
-    } catch (err) {
-      console.error("[MyBookshelf] renew error:", err);
-      Alert.alert("Lỗi", err.message || "Không thể gia hạn");
+    // Tìm book để lấy thông tin daysLeft
+    const book = borrowedBooks.find((b) => b.id === borrowId);
+    if (!book) {
+      Alert.alert("Lỗi", "Không tìm thấy thông tin sách");
+      return;
     }
+
+    // Kiểm tra đã gia hạn chưa (nếu có renewCount)
+    if (book.renewCount >= book.maxRenewCount) {
+      Alert.alert(
+        "Không thể gia hạn",
+        strings.maxRenewReached || "Bạn đã gia hạn tối đa số lần cho phép"
+      );
+      return;
+    }
+
+    // Tính số ngày còn lại
+    const daysLeft = book.daysLeft || 0;
+    
+    // Tính số ngày tối đa có thể gia hạn: tổng thời gian < 30 ngày
+    // maxDays = 29 - daysLeft (để đảm bảo tổng < 30, không được <= 30)
+    const maxDays = Math.max(1, Math.min(30, 29 - daysLeft));
+
+    // Tạo danh sách tùy chọn số ngày gia hạn
+    const dayOptions = [];
+    if (maxDays >= 7) dayOptions.push({ label: "7 ngày", value: 7 });
+    if (maxDays >= 14) dayOptions.push({ label: "14 ngày", value: 14 });
+    if (maxDays >= 21) dayOptions.push({ label: "21 ngày", value: 21 });
+    if (maxDays > 0 && maxDays !== 7 && maxDays !== 14 && maxDays !== 21) {
+      dayOptions.push({ label: `${maxDays} ngày (tối đa)`, value: maxDays });
+    }
+
+    if (dayOptions.length === 0) {
+      Alert.alert(
+        "Không thể gia hạn",
+        strings.cannotRenew || "Tổng thời gian mượn đã đạt tối đa 30 ngày"
+      );
+      return;
+    }
+
+    // Hiển thị Alert để chọn số ngày gia hạn
+    const buttons = dayOptions.map((option) => ({
+      text: option.label,
+      onPress: async () => {
+        try {
+          const res = await borrowsAPI.renewBorrow(borrowId, option.value);
+          Alert.alert(
+            "Thành công",
+            strings.renewSuccess || `Đã gia hạn thêm ${option.value} ngày`
+          );
+          await loadBorrowed({ silent: true });
+          return res;
+        } catch (err) {
+          console.error("[MyBookshelf] renew error:", err);
+          Alert.alert("Lỗi", err.message || "Không thể gia hạn");
+        }
+      },
+    }));
+
+    buttons.push({
+      text: strings.cancel || "Hủy",
+      style: "cancel",
+    });
+
+    Alert.alert(
+      strings.renewBook || "Gia hạn sách",
+      strings.selectRenewDays || `Chọn số ngày gia hạn (còn ${daysLeft} ngày, tối đa ${maxDays} ngày):`,
+      buttons
+    );
+  };
+
+  const handleReturn = async (borrowId) => {
+    Alert.alert(
+      strings.confirmReturn || "Xác nhận trả sách",
+      strings.confirmReturnMessage || "Bạn có chắc chắn muốn trả sách này?",
+      [
+        {
+          text: strings.cancel || "Hủy",
+          style: "cancel",
+        },
+        {
+          text: strings.return || "Trả sách",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await borrowsAPI.returnBook(borrowId);
+              Alert.alert("Thành công", strings.returnSuccess || "Đã trả sách");
+              await loadBorrowed({ silent: true });
+              return res;
+            } catch (err) {
+              console.error("[MyBookshelf] return error:", err);
+              Alert.alert("Lỗi", err.message || "Không thể trả sách");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getStatusInfo = (book) => {
+    // Nếu đã trả
+    if (book.isReturned || book.status === "returned") {
+      return {
+        isExpired: false,
+        isReturned: true,
+        statusColor: "#6c757d", // Gray color for returned
+        statusText: strings.returned || "Đã trả",
+      };
+    }
+    
     const isExpired =
       book.isExpired === true ||
       book.status === "expired" ||
@@ -277,12 +401,12 @@ export default function MyBookshelfScreen({
       ? strings.oneDayLeft || "1 ngày nữa"
       : `${book.daysLeft} ${strings.daysLeft || "ngày nữa"}`;
 
-    return { isExpired, statusColor, statusText };
+    return { isExpired, isReturned: false, statusColor, statusText };
   };
 
   const renderBookItem = (book) => {
     if (currentTab === TABS.BORROWED) {
-      const { isExpired, statusColor, statusText } = getStatusInfo(book);
+      const { isExpired, isReturned, statusColor, statusText } = getStatusInfo(book);
 
       return (
         <View
@@ -290,7 +414,7 @@ export default function MyBookshelfScreen({
           style={[
             styles.bookItem,
             { backgroundColor: colors.cardBg, borderColor: colors.inputBorder },
-            isExpired && styles.expiredBookItem,
+            (isExpired || isReturned) && styles.expiredBookItem,
           ]}
         >
           <View
@@ -321,9 +445,15 @@ export default function MyBookshelfScreen({
             >
               {book.author}
             </Text>
-            <Text style={[styles.expirationDate, { color: colors.muted }]}>
-              {strings.expirationDate || "Thời hạn"}: {book.expirationDate}
-            </Text>
+            {isReturned ? (
+              <Text style={[styles.expirationDate, { color: colors.muted }]}>
+                {strings.returnedDate || "Ngày trả"}: {book.returnedDate || book.expirationDate}
+              </Text>
+            ) : (
+              <Text style={[styles.expirationDate, { color: colors.muted }]}>
+                {strings.expirationDate || "Thời hạn"}: {book.expirationDate}
+              </Text>
+            )}
             <View
               style={[
                 styles.statusBadge,
@@ -337,19 +467,69 @@ export default function MyBookshelfScreen({
                 {statusText}
               </Text>
             </View>
-            {!isExpired ? (
-              <TouchableOpacity
-                style={[
-                  styles.renewButton,
-                  { backgroundColor: STATUS_COLORS.RENEW },
-                ]}
-                onPress={() => handleRenew(book.id)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.renewButtonText, { color: "#fff" }]}>
-                  {strings.renew || "Gia hạn"}
-                </Text>
-              </TouchableOpacity>
+            {isReturned ? (
+              // Sách đã trả: không hiển thị nút
+              null
+            ) : !isExpired ? (
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                {/* Nếu còn dưới 3 ngày: hiện "Gia hạn" trước, "Trả sách" sau */}
+                {/* Nếu >= 3 ngày: hiện "Trả sách" trước, "Gia hạn" sau */}
+                {book.daysLeft < 3 ? (
+                  <>
+                    <TouchableOpacity
+                      style={[
+                        styles.renewButton,
+                        { backgroundColor: STATUS_COLORS.RENEW, flex: 1 },
+                      ]}
+                      onPress={() => handleRenew(book.id)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.renewButtonText, { color: "#fff" }]}>
+                        {strings.renew || "Gia hạn"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.returnButton,
+                        { backgroundColor: colors.buttonBg, flex: 1 },
+                      ]}
+                      onPress={() => handleReturn(book.id)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.returnButtonText, { color: "#fff" }]}>
+                        {strings.return || "Trả sách"}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={[
+                        styles.returnButton,
+                        { backgroundColor: colors.buttonBg, flex: 1 },
+                      ]}
+                      onPress={() => handleReturn(book.id)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.returnButtonText, { color: "#fff" }]}>
+                        {strings.return || "Trả sách"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.renewButton,
+                        { backgroundColor: STATUS_COLORS.RENEW, flex: 1 },
+                      ]}
+                      onPress={() => handleRenew(book.id)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.renewButtonText, { color: "#fff" }]}>
+                        {strings.renew || "Gia hạn"}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
             ) : (
               <View
                 style={[
@@ -366,6 +546,7 @@ export default function MyBookshelfScreen({
         </View>
       );
     } else {
+      // Tab FAVORITES hoặc SAVED: cho phép click để xem chi tiết
       return (
         <TouchableOpacity
           key={book.id}
@@ -373,7 +554,7 @@ export default function MyBookshelfScreen({
             styles.bookItem,
             { backgroundColor: colors.cardBg, borderColor: colors.inputBorder },
           ]}
-          onPress={() => onNavigate?.("bookDetail")}
+          onPress={() => onNavigate?.("bookDetail", { book })}
           activeOpacity={0.7}
         >
           <View

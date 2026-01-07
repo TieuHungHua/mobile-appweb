@@ -421,5 +421,158 @@ export const createStyles = (colors) =>
     termsLink: {
       fontWeight: "700",
       textDecorationLine: "underline",
-    },
-  });
+  },
+  // Comments styles
+  commentsSection: {
+    marginTop: 24,
+    gap: 16,
+  },
+  commentsTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  commentForm: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    gap: 12,
+  },
+  commentInput: {
+    minHeight: 80,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    textAlignVertical: "top",
+  },
+  commentSubmitBtn: {
+    alignSelf: "flex-end",
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 80,
+  },
+  commentSubmitBtnDisabled: {
+    opacity: 0.5,
+  },
+  commentSubmitText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  commentsLoading: {
+    alignItems: "center",
+    paddingVertical: 24,
+    gap: 8,
+  },
+  commentsLoadingText: {
+    fontSize: 14,
+  },
+  commentsEmpty: {
+    alignItems: "center",
+    paddingVertical: 40,
+    gap: 12,
+  },
+  commentsEmptyText: {
+    fontSize: 14,
+  },
+  commentsList: {
+    gap: 16,
+  },
+  commentItem: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    gap: 12,
+  },
+  commentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  commentUserInfo: {
+    flexDirection: "row",
+    gap: 10,
+    flex: 1,
+  },
+  commentAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  commentUserDetails: {
+    flex: 1,
+    gap: 4,
+  },
+  commentUserName: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  commentDate: {
+    fontSize: 12,
+  },
+  commentActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  commentActionBtn: {
+    padding: 4,
+  },
+  commentContent: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  commentEditForm: {
+    gap: 12,
+  },
+  commentEditInput: {
+    minHeight: 80,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    textAlignVertical: "top",
+    borderWidth: 1,
+  },
+  commentEditActions: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "flex-end",
+  },
+  commentEditBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 80,
+  },
+  commentEditBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  loadMoreCommentsBtn: {
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  loadMoreCommentsText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  commentInfoBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  commentInfoText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+});

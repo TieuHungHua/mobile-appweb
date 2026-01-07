@@ -270,14 +270,17 @@ export default function App() {
         colors={colors}
         activeTab={myBookshelfActiveTab}
         onTabChange={setMyBookshelfActiveTab}
-        onNavigate={(key) => {
+        onNavigate={(key, params) => {
           if (key === "settings") {
             setCurrentScreen("settings");
             setPreviousScreen(null);
           }
           if (key === "bookDetail") {
+            setSelectedBook(params?.book || null);
             setPreviousScreen("myBookshelf");
             setCurrentScreen("bookDetail");
+            // Add myBookshelf to navigation stack to keep it mounted
+            setNavigationStack(["myBookshelf"]);
           }
         }}
       />
