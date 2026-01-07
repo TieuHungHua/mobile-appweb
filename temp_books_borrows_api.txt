@@ -1,0 +1,250 @@
+﻿          "Kh├┤ng thß╗â kß║┐t nß╗æi ─æß║┐n server ─æß╗â cß║¡p nhß║¡t th├┤ng tin."
+        );
+        console.error("[API] Network Error:", networkError.message);
+        throw networkError;
+      }
+
+      console.error("[API] Update Profile Error:", error.message);
+      throw error;
+    }
+  },
+};
+
+// Books API endpoints
+export const booksAPI = {
+  /**
+   * Get list of books with filters and infinite scroll support
+   * @param {object} params - Query parameters
+   * @param {number} params.limit - Number of books per request (default: 20)
+   * @param {number} params.page - Page number (for infinite scroll, starts at 1)
+   * @param {string} params.search - Search by book title (case insensitive)
+   * @param {string} params.author - Filter by author (case insensitive)
+   * @param {string} params.category - Filter by category
+   * @param {string} params.sortBy - Sort field: "createdAt" | "title" | "author" (default: "createdAt")
+   * @param {string} params.sortOrder - Sort order: "asc" | "desc" (default: "desc")
+   * @returns {Promise<{data: array, pagination: object}>}
+   */
+  getBooks: async (params = {}) => {
+    const {
+      limit = 20,
+      page = 1,
+      search,
+      author,
+      category,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = params;
+
+    // Build query string
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", page.toString());
+    queryParams.append("limit", limit.toString());
+    if (search) queryParams.append("search", search);
+    if (author) queryParams.append("author", author);
+    if (category) queryParams.append("category", category);
+    queryParams.append("sortBy", sortBy);
+    queryParams.append("sortOrder", sortOrder);
+
+    const endpoint = `/books?${queryParams.toString()}`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Get book detail by ID
+   * @param {string} bookId - Book ID
+   * @returns {Promise<object>} Book detail object
+   */
+  getBookById: async (bookId) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    const endpoint = `/books/${bookId}`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Toggle favorite status for a book
+   * @param {string} bookId - Book ID
+   * @returns {Promise<object>} Response with isFavorite status
+   */
+  toggleFavorite: async (bookId) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    const endpoint = `/books/${bookId}/favorite`;
+    return await apiRequest(endpoint, {
+      method: "POST",
+    });
+  },
+
+  /**
+   * Check if book is favorited by current user
+   * @param {string} bookId - Book ID
+   * @returns {Promise<{bookId: string, isFavorite: boolean, favoriteId: string|null}>}
+   */
+  checkFavorite: async (bookId) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    const endpoint = `/books/${bookId}/favorite`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Get list of favorite books with pagination
+   * @param {object} params - Query parameters
+   * @param {number} params.page - Page number (default: 1)
+   * @param {number} params.limit - Number of books per page (default: 20)
+   * @param {string} params.search - Search by book title or author (optional)
+   * @returns {Promise<{data: array, pagination: object}>}
+   */
+  getFavorites: async (params = {}) => {
+    const { page = 1, limit = 20, search } = params;
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", page.toString());
+    queryParams.append("limit", limit.toString());
+    if (search) queryParams.append("search", search);
+
+    const endpoint = `/books/favorites?${queryParams.toString()}`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Get list of saved (bookmarked) books with pagination
+   * @param {object} params - Query parameters
+   * @param {number} params.page - Page number (default: 1)
+   * @param {number} params.limit - Number of books per page (default: 20)
+   * @returns {Promise<{data: array, pagination: object}>}
+   */
+  getSaved: async (params = {}) => {
+    const { page = 1, limit = 20 } = params;
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", page.toString());
+    queryParams.append("limit", limit.toString());
+
+    const endpoint = `/books/saved?${queryParams.toString()}`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Toggle save/bookmark status for a book
+   * @param {string} bookId - Book ID
+   * @returns {Promise<{bookId: string, isSaved: boolean, savedId?: string|null}>}
+   */
+  toggleSave: async (bookId) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    const endpoint = `/books/${bookId}/save`;
+    return await apiRequest(endpoint, {
+      method: "POST",
+    });
+  },
+};
+
+// Borrows API endpoints
+export const borrowsAPI = {
+  /**
+   * Borrow a book from the library
+   * @param {object} borrowData - Borrow data
+   * @param {string} borrowData.bookId - Book ID (required, UUID)
+   * @param {string} borrowData.dueAt - Due date in ISO 8601 format (required, must be future date)
+   * @returns {Promise<object>} Borrow object with user, book, dates, and status
+   * @throws {Error} If validation fails, book not available, or already borrowed
+   */
+  borrowBook: async ({ bookId, dueAt }) => {
+    // Validate required fields
+    if (!bookId || bookId.trim() === "") {
+      throw new Error("ID s├ích kh├┤ng ─æ╞░ß╗úc ─æß╗â trß╗æng");
+    }
+
+    if (!dueAt || dueAt.trim() === "") {
+      throw new Error("Ng├áy hß║┐t hß║ín kh├┤ng ─æ╞░ß╗úc ─æß╗â trß╗æng");
+    }
+
+    // Validate UUID format (basic check)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(bookId)) {
+      throw new Error("ID s├ích kh├┤ng hß╗úp lß╗ç (phß║úi l├á UUID)");
+    }
+
+    // Validate ISO 8601 date format and future date
+    try {
+      const dueDate = new Date(dueAt);
+      if (isNaN(dueDate.getTime())) {
+        throw new Error("Ng├áy hß║┐t hß║ín kh├┤ng hß╗úp lß╗ç");
+      }
+      const now = new Date();
+      if (dueDate <= now) {
+        throw new Error("Ng├áy hß║┐t hß║ín phß║úi l├á ng├áy trong t╞░╞íng lai");
+      }
+    } catch (error) {
+      if (error.message.includes("Ng├áy hß║┐t hß║ín")) {
+        throw error;
+      }
+      throw new Error("Ng├áy hß║┐t hß║ín kh├┤ng ─æ├║ng ─æß╗ïnh dß║íng ISO 8601");
+    }
+
+    const response = await apiRequest("/borrows", {
+      method: "POST",
+      body: JSON.stringify({ bookId, dueAt }),
+    });
+
+    return response;
+  },
+
+  /**
+   * Get list of borrowed books for current user
+   * @param {object} params - Query parameters
+   * @param {number} params.page - Page number (default: 1)
+   * @param {number} params.limit - Number of records per page (default: 20)
+   * @param {string} params.search - Search by book title/author
+   * @param {string} params.status - Filter by status (active/expired/returned)
+   */
+  getBorrows: async (params = {}) => {
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      status = "active",
+    } = params;
+
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", page.toString());
+    queryParams.append("limit", limit.toString());
+    if (search) queryParams.append("search", search);
+    if (status) queryParams.append("status", status);
+
+    const endpoint = `/borrows?${queryParams.toString()}`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Renew a borrowed book
+   * @param {string} borrowId - Borrow record ID
+   * @param {string} newDueAt - Optional new due date (ISO 8601)
+   */
+  renewBorrow: async (borrowId, newDueAt) => {
+    if (!borrowId) {
+      throw new Error("Borrow ID is required");
+    }
+    const endpoint = `/borrows/${borrowId}/renew`;
+    const body = newDueAt ? { newDueAt } : {};
+    return await apiRequest(endpoint, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+};

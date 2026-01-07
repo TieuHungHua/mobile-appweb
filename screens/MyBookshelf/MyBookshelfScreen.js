@@ -24,6 +24,10 @@ import {
 import { PanResponder } from "react-native";
 import { booksAPI, borrowsAPI } from "../../utils/api";
 
+// Debug: Check if APIs are imported correctly
+console.log("[MyBookshelf] booksAPI:", typeof booksAPI, booksAPI ? Object.keys(booksAPI) : "undefined");
+console.log("[MyBookshelf] borrowsAPI:", typeof borrowsAPI, borrowsAPI ? Object.keys(borrowsAPI) : "undefined");
+
 export default function MyBookshelfScreen({
   theme,
   lang,
