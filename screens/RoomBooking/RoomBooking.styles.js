@@ -5,6 +5,9 @@ export const createStyles = (colors) =>
     container: {
       flex: 1,
     },
+    keyboardView: {
+      flex: 1,
+    },
     header: {
       paddingTop: Platform.OS === "ios" ? 50 : 30,
       paddingHorizontal: 16,
@@ -28,7 +31,7 @@ export const createStyles = (colors) =>
     },
     content: {
       padding: 16,
-      paddingBottom: 100,
+      paddingBottom: 120,
       gap: 24,
     },
     section: {
@@ -192,8 +195,8 @@ export const createStyles = (colors) =>
       justifyContent: "center",
     },
     quantityButtonText: {
-      fontSize: 20,
-      fontWeight: "700",
+      fontSize: 25,
+      fontWeight: "900",
     },
     quantityValue: {
       flex: 1,
@@ -218,6 +221,98 @@ export const createStyles = (colors) =>
       justifyContent: "center",
     },
     confirmButtonText: {
+      fontSize: 16,
+      fontWeight: "700",
+    },
+    loadingContainer: {
+      paddingVertical: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+    },
+    loadingText: {
+      fontSize: 14,
+      fontWeight: "500",
+    },
+    emptyContainer: {
+      paddingVertical: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+    },
+    emptyText: {
+      fontSize: 14,
+      fontWeight: "500",
+      textAlign: "center",
+      paddingHorizontal: 20,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 20,
+    },
+    modalContent: {
+      width: "100%",
+      maxWidth: 400,
+      borderRadius: 20,
+      padding: 24,
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOpacity: 0.25,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 5 },
+      elevation: 10,
+    },
+    modalIconContainer: {
+      marginBottom: 16,
+    },
+    modalIconCircle: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    modalTitle: {
+      fontSize: 22,
+      fontWeight: "700",
+      marginBottom: 20,
+      textAlign: "center",
+    },
+    modalInfoContainer: {
+      width: "100%",
+      gap: 12,
+      marginBottom: 20,
+    },
+    modalInfoRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 8,
+    },
+    modalInfoText: {
+      fontSize: 15,
+      fontWeight: "500",
+      flex: 1,
+    },
+    modalSubtext: {
+      fontSize: 13,
+      fontWeight: "400",
+      textAlign: "center",
+      marginTop: 8,
+      marginBottom: 20,
+    },
+    modalButton: {
+      width: "100%",
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 8,
+    },
+    modalButtonText: {
       fontSize: 16,
       fontWeight: "700",
     },

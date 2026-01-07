@@ -75,6 +75,14 @@ export const GENERAL_MENU_ITEMS = [
     navigate: "privacyPolicy",
     type: "button",
   },
+  {
+    id: "faq",
+    label: "faq",
+    defaultLabel: "Hỗ trợ & Gửi ý kiến",
+    icon: "chevron-forward",
+    navigate: "faq",
+    type: "button",
+  },
 ];
 
 export const SWITCH_COLORS = {

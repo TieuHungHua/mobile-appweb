@@ -1,4 +1,5 @@
 import { StatusBar } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import {
   Text,
@@ -21,12 +22,7 @@ import {
   storeUserInfo,
 } from "../../utils/api";
 import { createStyles } from "./Login.styles";
-import {
-  INITIAL_STATE,
-  VALIDATION_MESSAGES,
-  USER_ICON_DIMENSIONS,
-  LOGIN_CONFIG,
-} from "./Login.mock";
+import { INITIAL_STATE, VALIDATION_MESSAGES, LOGIN_CONFIG } from "./Login.mock";
 
 export default function LoginScreen({
   onNavigateToRegister,
@@ -43,6 +39,7 @@ export default function LoginScreen({
   const [password, setPassword] = useState(INITIAL_STATE.password);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -121,14 +118,12 @@ export default function LoginScreen({
         >
           <StatusBar style={theme === "dark" ? "light" : "dark"} />
 
-          {/* Header */}
           <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
             <Text style={[styles.headerTitle, { color: colors.headerText }]}>
               {strings.appTitle}
             </Text>
           </View>
 
-          {/* Login Card */}
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
@@ -139,7 +134,6 @@ export default function LoginScreen({
               <View
                 style={[styles.loginCard, { backgroundColor: colors.cardBg }]}
               >
-                {/* User Icon */}
                 <View style={styles.userIconContainer}>
                   <View
                     style={[
@@ -167,7 +161,6 @@ export default function LoginScreen({
 
                 {/* Form */}
                 <View style={styles.form}>
-                  {/* Error Message */}
                   {error ? (
                     <View style={styles.errorContainer}>
                       <Text
@@ -191,7 +184,7 @@ export default function LoginScreen({
                         styles.input,
                         {
                           borderColor: colors.inputBorder,
-                          backgroundColor: colors.inputBg,
+
                           color: colors.text,
                         },
                       ]}
@@ -221,23 +214,44 @@ export default function LoginScreen({
                         </Text>
                       </TouchableOpacity>
                     </View>
-                    <TextInput
+                    <View
                       style={[
-                        styles.input,
+                        styles.inputContainer,
                         {
                           borderColor: colors.inputBorder,
-                          backgroundColor: colors.inputBg,
-                          color: colors.text,
                         },
                       ]}
-                      value={password}
-                      onChangeText={handlePasswordChange}
-                      secureTextEntry
-                      autoCapitalize="none"
-                      placeholderTextColor={colors.placeholder}
-                      editable={!loading}
-                      placeholder={strings.passwordPlaceholder}
-                    />
+                    >
+                      <TextInput
+                        style={[styles.inputField, { color: colors.text }]}
+                        value={password}
+                        onChangeText={handlePasswordChange}
+                        secureTextEntry={!passwordVisible}
+                        autoCapitalize="none"
+                        placeholderTextColor={colors.placeholder}
+                        editable={!loading}
+                        placeholder={strings.passwordPlaceholder}
+                      />
+                      <TouchableOpacity
+                        onPress={() => setPasswordVisible((v) => !v)}
+                        disabled={loading}
+                        accessibilityLabel={
+                          passwordVisible
+                            ? strings.hide || "Ẩn mật khẩu"
+                            : strings.show || "Hiện mật khẩu"
+                        }
+                        accessibilityRole="button"
+                      >
+                        <Ionicons
+                          name={
+                            passwordVisible ? "eye-off-outline" : "eye-outline"
+                          }
+                          size={22}
+                          color={colors.muted}
+                          style={styles.visibilityIcon}
+                        />
+                      </TouchableOpacity>
+                    </View>
                   </View>
 
                   {/* Buttons */}

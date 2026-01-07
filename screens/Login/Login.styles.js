@@ -87,6 +87,27 @@ export const createStyles = (colors) =>
       alignItems: "center",
       marginBottom: 10,
     },
+    inputContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1.5,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      height: 48,
+    },
+    inputIcon: {
+      fontSize: 16,
+      marginRight: 8,
+    },
+    inputField: {
+      flex: 1,
+      fontSize: 15,
+      paddingVertical: Platform.OS === "ios" ? 10 : 6,
+    },
+    visibilityIcon: {
+      fontSize: 18,
+      paddingHorizontal: 4,
+    },
     input: {
       borderWidth: 1.5,
       borderRadius: 10,

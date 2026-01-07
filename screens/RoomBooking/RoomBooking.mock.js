@@ -16,35 +16,3 @@ export const mockTimeSlots = [
   "15:00-16:00",
   "16:00-17:00",
 ];
-
-export const mockRooms = [
-  {
-    id: 1,
-    name: "Phòng Thảo luận 101",
-    capacity: "6 người",
-    status: "available",
-    amenities: ["Máy chiếu", "Bảng trắng"],
-  },
-  {
-    id: 2,
-    name: "Phòng Thảo luận 102",
-    capacity: "6 người",
-    status: "available",
-    amenities: ["Máy chiếu", "Bảng trắng"],
-  },
-  {
-    id: 3,
-    name: "Phòng Thảo luận 103",
-    capacity: "6 người",
-    status: "booked",
-    amenities: ["Máy chiếu", "Bảng trắng"],
-  },
-  {
-    id: 4,
-    name: "Phòng Thảo luận 201",
-    capacity: "8 người",
-    status: "available",
-    amenities: ["Máy chiếu", "Bảng trắng", "Máy tính"],
-  },
-];
-

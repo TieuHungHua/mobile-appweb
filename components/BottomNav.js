@@ -1,31 +1,69 @@
-import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  Text,
+  Platform,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 const NAV_ITEMS = [
-  { key: 'home', labelKey: 'home', icon: 'home-outline', activeIcon: 'home' },
-  { key: 'library', labelKey: 'library', icon: 'book-outline', activeIcon: 'book' },
-  { key: 'chats', labelKey: 'chats', icon: 'chatbubble-ellipses-outline', activeIcon: 'chatbubble-ellipses' },
-  { key: 'settings', labelKey: 'settings', icon: 'settings-outline', activeIcon: 'settings' },
+  { key: "home", labelKey: "home", icon: "home-outline", activeIcon: "home" },
+  {
+    key: "library",
+    labelKey: "library",
+    icon: "book-outline",
+    activeIcon: "book",
+  },
+  {
+    key: "chats",
+    labelKey: "chats",
+    icon: "chatbubble-ellipses-outline",
+    activeIcon: "chatbubble-ellipses",
+  },
+  {
+    key: "settings",
+    labelKey: "settings",
+    icon: "person-outline",
+    activeIcon: "person",
+  },
 ];
 
 export default function BottomNav({ activeKey, onChange, colors, strings }) {
   return (
-    <View style={[styles.container, { backgroundColor: colors.cardBg, borderColor: colors.inputBorder }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: "#FFFFFF",
+          borderTopColor: colors.buttonBg + "40", // Light blue border
+        },
+      ]}
+    >
       {NAV_ITEMS.map((item) => {
         const active = activeKey === item.key;
         return (
           <TouchableOpacity
             key={item.key}
-            style={[styles.item, active && { backgroundColor: colors.buttonBg }]}
+            style={styles.item}
             onPress={() => onChange?.(item.key)}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
             <Ionicons
               name={active ? item.activeIcon : item.icon}
-              size={22}
-              color={active ? colors.buttonText : colors.text}
+              size={24}
+              color={active ? colors.buttonBg : colors.muted}
             />
-            <Text style={[styles.label, { color: active ? colors.buttonText : colors.text }]} numberOfLines={1}>
+            <Text
+              style={[
+                styles.label,
+                {
+                  color: active ? colors.buttonBg : "#64748b",
+                  fontWeight: active ? "600" : "500",
+                },
+              ]}
+              numberOfLines={1}
+            >
               {strings?.[item.labelKey] || item.labelKey}
             </Text>
           </TouchableOpacity>
@@ -37,26 +75,30 @@ export default function BottomNav({ activeKey, onChange, colors, strings }) {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === "ios" ? 28 : 12, // Extra padding for iOS safe area
     borderTopWidth: 1,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -2 },
+    elevation: 5,
   },
   item: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    marginHorizontal: 4,
-    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
     gap: 4,
   },
   label: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
+    marginTop: 2,
   },
 });
-
-
