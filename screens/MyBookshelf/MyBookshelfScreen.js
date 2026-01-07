@@ -162,12 +162,23 @@ export default function MyBookshelfScreen({
         });
         const list = res.data || res || [];
         const mapped = list.map((item) => {
+          // Backend trả về structure: { id, userId, bookId, favoritedAt, book: {...} }
           const book = item.book || item;
           return {
-            id: book.id || item.id,
+            id: book.id || item.bookId || item.id,
             title: book.title,
             author: book.author,
-            cover: book.coverImage,
+            cover: book.coverImage || book.cover_image,
+            description: book.description,
+            availableCopies: book.availableCopies || book.available_copies,
+            totalCopies: book.totalCopies || book.total_copies,
+            status: book.status,
+            isBorrowed: Boolean(book.isBorrowed),
+            borrowDue: book.borrowDue || book.dueAt || book.due_at,
+            isFavorite: Boolean(book.isFavorite !== undefined ? book.isFavorite : true), // Luôn true vì đây là favorites
+            favoritedAt: item.favoritedAt || item.favorited_at,
+            // Giữ nguyên các fields khác từ book
+            ...book,
           };
         });
         setFavoriteBooks(mapped);

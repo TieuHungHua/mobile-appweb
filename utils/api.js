@@ -684,13 +684,15 @@ export const booksAPI = {
    * @param {object} params - Query parameters
    * @param {number} params.page - Page number (default: 1)
    * @param {number} params.limit - Number of books per page (default: 20)
+   * @param {string} params.search - Search by book title or author (optional)
    * @returns {Promise<{data: array, pagination: object}>}
    */
   getFavorites: async (params = {}) => {
-    const { page = 1, limit = 20 } = params;
+    const { page = 1, limit = 20, search } = params;
     const queryParams = new URLSearchParams();
     queryParams.append("page", page.toString());
     queryParams.append("limit", limit.toString());
+    if (search) queryParams.append("search", search);
 
     const endpoint = `/books/favorites?${queryParams.toString()}`;
     return await apiRequest(endpoint, {

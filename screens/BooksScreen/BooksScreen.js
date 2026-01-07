@@ -58,6 +58,7 @@ export default function BooksScreen({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [borrowing, setBorrowing] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   useEffect(() => {
     if (
@@ -100,18 +101,34 @@ export default function BooksScreen({
 
         const response = await booksAPI.getBooks(params);
 
+        let newBooks = [];
         if (response && response.data) {
-          const newBooks = response.data.map((book) => {
-            // Format borrowDue if exists
-            if (book.borrowDue || book.dueAt || book.due_at) {
+          newBooks = response.data.map((book) => {
+            // Đảm bảo isBorrowed là boolean (backend có thể trả về undefined)
+            const isBorrowed = Boolean(book.isBorrowed);
+
+            // Format borrowDue nếu có (backend trả về ISO 8601 hoặc null)
+            let borrowDue = null;
+            if (isBorrowed) {
               const dueDate = book.borrowDue || book.dueAt || book.due_at;
-              return {
-                ...book,
-                borrowDue: formatDateForDisplay(dueDate),
-              };
+              if (dueDate) {
+                borrowDue = formatDateForDisplay(dueDate);
+              }
             }
-            return book;
+
+            // Đảm bảo isFavorite là boolean
+            const isFavorite = Boolean(book.isFavorite);
+
+            return {
+              ...book,
+              isBorrowed, // Đảm bảo là boolean
+              borrowDue,  // Format date hoặc null
+              isFavorite, // Đảm bảo là boolean
+            };
           });
+        }
+
+        if (response) {
           const pagination = response.pagination || {};
 
           if (append) {
@@ -166,11 +183,14 @@ export default function BooksScreen({
   const filteredBooks = useMemo(() => {
     if (tab === "available") {
       // Chỉ lấy sách có sẵn VÀ user chưa mượn
-      return books.filter((b) => 
-        (b.status === "có sẵn" || b.availableCopies > 0) && 
-        !b.isBorrowed // Không bao gồm sách đang mượn
-      );
+      // Backend đã filter, nhưng vẫn check client-side để đảm bảo
+      return books.filter((b) => {
+        const isBorrowed = Boolean(b.isBorrowed);
+        const isAvailable = b.status === "có sẵn" || (b.availableCopies && b.availableCopies > 0);
+        return isAvailable && !isBorrowed;
+      });
     }
+    // Tab "all": Hiển thị TẤT CẢ sách, bao gồm cả sách đã mượn
     return books;
   }, [books, tab]);
 
@@ -246,10 +266,10 @@ export default function BooksScreen({
       console.log("[BooksScreen] Borrow success:", result);
 
       // Update books list immediately
-      const formattedDueDate = result.dueAt || result.due_at 
+      const formattedDueDate = result.dueAt || result.due_at
         ? formatDateForDisplay(result.dueAt || result.due_at)
         : null;
-      
+
       setBooks((prevBooks) => {
         return prevBooks.map((b) => {
           if (b.id === selectedBook.id) {
@@ -302,6 +322,85 @@ export default function BooksScreen({
       setBorrowing(false);
     }
   }, [selectedBook, selectedDueDate, loadBooks]);
+
+  // Handle toggle favorite
+  const handleToggleFavorite = useCallback(async (book) => {
+    if (!book?.id) {
+      Alert.alert("Lỗi", "Không có thông tin sách");
+      return;
+    }
+
+    try {
+      setFavoriteLoading(true);
+      const previousFavorite = Boolean(book.isFavorite);
+      const newFavoriteState = !previousFavorite;
+
+      // Optimistic update
+      setBooks((prevBooks) => {
+        return prevBooks.map((b) => {
+          if (b.id === book.id) {
+            return {
+              ...b,
+              isFavorite: newFavoriteState,
+            };
+          }
+          return b;
+        });
+      });
+
+      const result = await booksAPI.toggleFavorite(book.id);
+
+      // Update với response từ server
+      if (result.isFavorite !== undefined) {
+        setBooks((prevBooks) => {
+          return prevBooks.map((b) => {
+            if (b.id === book.id) {
+              return {
+                ...b,
+                isFavorite: result.isFavorite,
+              };
+            }
+            return b;
+          });
+        });
+      }
+
+      // Show success message (optional, có thể bỏ để không làm phiền user)
+      // if (result.isFavorite) {
+      //   Alert.alert("Thành công", "Đã thêm vào yêu thích!\nBạn nhận được 2 điểm thưởng.");
+      // } else {
+      //   Alert.alert("Thành công", "Đã bỏ yêu thích.");
+      // }
+    } catch (error) {
+      console.error("[BooksScreen] Toggle favorite error:", error);
+
+      // Revert optimistic update
+      setBooks((prevBooks) => {
+        return prevBooks.map((b) => {
+          if (b.id === book.id) {
+            return {
+              ...b,
+              isFavorite: Boolean(book.isFavorite),
+            };
+          }
+          return b;
+        });
+      });
+
+      let errorMessage = "Không thể cập nhật yêu thích. Vui lòng thử lại.";
+      if (error.message) {
+        if (error.message.includes("Unauthorized")) {
+          errorMessage = "Vui lòng đăng nhập để yêu thích sách";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      Alert.alert("Lỗi", errorMessage);
+    } finally {
+      setFavoriteLoading(false);
+    }
+  }, []);
 
   // Open borrow sheet
   const openBorrowSheet = useCallback((book) => {
@@ -491,6 +590,8 @@ export default function BooksScreen({
                 outputRange: [0, 75, 200],
                 extrapolate: "clamp",
               });
+              // Capture favoriteLoading from component scope
+              const isLoading = favoriteLoading;
               return (
                 <Animated.View
                   style={[
@@ -519,11 +620,19 @@ export default function BooksScreen({
                   <TouchableOpacity
                     style={[
                       styles.swipeBtn,
-                      { backgroundColor: "#f6c344" },
+                      {
+                        backgroundColor: Boolean(b.isFavorite) ? "#f6c344" : "#f6c344",
+                        opacity: isLoading ? 0.5 : 1,
+                      },
                     ]}
+                    onPress={async () => {
+                      openRowRef.current?.close();
+                      await handleToggleFavorite(b);
+                    }}
+                    disabled={isLoading}
                   >
                     <Ionicons
-                      name="heart-outline"
+                      name={Boolean(b.isFavorite) ? "heart" : "heart-outline"}
                       size={18}
                       color="#1f1f1f"
                     />
@@ -531,43 +640,46 @@ export default function BooksScreen({
                       style={[styles.swipeText, { color: "#1f1f1f" }]}
                       numberOfLines={1}
                     >
-                      {strings.favorite || "Thích"}
+                      {Boolean(b.isFavorite)
+                        ? strings.favorited || "Đã thích"
+                        : strings.favorite || "Thích"}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
                       styles.swipeBtn,
                       {
-                        backgroundColor: b.isBorrowed
+                        backgroundColor: Boolean(b.isBorrowed)
                           ? colors.inputBg
                           : colors.buttonBg,
-                        opacity: b.isBorrowed || (b.availableCopies <= 0 && b.status !== "có sẵn") ? 0.5 : 1,
+                        opacity: Boolean(b.isBorrowed) || (b.availableCopies <= 0 && b.status !== "có sẵn") ? 0.5 : 1,
                       },
                     ]}
                     onPress={() => {
-                      if (b.isBorrowed || (b.availableCopies <= 0 && b.status !== "có sẵn")) {
+                      const isBorrowed = Boolean(b.isBorrowed);
+                      if (isBorrowed || (b.availableCopies <= 0 && b.status !== "có sẵn")) {
                         return;
                       }
                       openRowRef.current?.close();
                       openBorrowSheet(b);
                     }}
-                    disabled={b.isBorrowed || (b.availableCopies <= 0 && b.status !== "có sẵn")}
+                    disabled={Boolean(b.isBorrowed) || (b.availableCopies <= 0 && b.status !== "có sẵn")}
                   >
                     <Ionicons
                       name="library-outline"
                       size={18}
-                      color={b.isBorrowed ? colors.text : colors.buttonText}
+                      color={Boolean(b.isBorrowed) ? colors.text : colors.buttonText}
                     />
                     <Text
                       style={[
                         styles.swipeText,
                         {
-                          color: b.isBorrowed ? colors.text : colors.buttonText,
+                          color: Boolean(b.isBorrowed) ? colors.text : colors.buttonText,
                         },
                       ]}
                       numberOfLines={1}
                     >
-                      {b.isBorrowed
+                      {Boolean(b.isBorrowed)
                         ? strings.borrowed || "Đã mượn"
                         : strings.borrow || "Mượn"}
                     </Text>
@@ -644,56 +756,68 @@ export default function BooksScreen({
                         {b.author}
                       </Text>
                       <View style={styles.bookFooter}>
-                        {/* Chỉ hiển thị status badge nếu chưa mượn */}
-                        {!b.isBorrowed && (
-                          <View
-                            style={[
-                              styles.statusBadge,
-                              {
-                                backgroundColor:
-                                  b.status === "có sẵn" || b.availableCopies > 0
-                                    ? "#2ecc71" + "20"
-                                    : colors.inputBg,
-                              },
-                            ]}
-                          >
-                            <View
-                              style={[
-                                styles.statusDot,
-                                {
-                                  backgroundColor:
-                                    b.status === "có sẵn" || b.availableCopies > 0
-                                      ? "#2ecc71"
-                                      : colors.muted,
-                                },
-                              ]}
-                            />
-                            <Text
-                              style={[
-                                styles.statusText,
-                                {
-                                  color:
-                                    b.status === "có sẵn" || b.availableCopies > 0
-                                      ? "#2ecc71"
-                                      : colors.muted,
-                                },
-                              ]}
-                            >
-                              {b.status === "có sẵn" || b.availableCopies > 0
-                                ? strings.available || "Có sẵn"
-                                : strings.notAvailable || "Không có sẵn"}
-                            </Text>
-                          </View>
-                        )}
-                        {/* Hiển thị ngày hết hạn nếu đã mượn */}
-                        {b.isBorrowed && b.borrowDue && (
-                          <View style={styles.dueDateContainer}>
-                            <Ionicons name="calendar-outline" size={12} color={colors.muted} />
-                            <Text style={[styles.dueDate, { color: colors.muted }]}>
-                              {strings.due || "Hạn"}: {b.borrowDue}
-                            </Text>
-                          </View>
-                        )}
+                        {/* Luôn hiển thị status badge cho tất cả sách */}
+                        {(() => {
+                          const isBorrowed = Boolean(b.isBorrowed);
+                          const isAvailable = b.status === "có sẵn" || (b.availableCopies && b.availableCopies > 0);
+
+                          return (
+                            <>
+                              <View
+                                style={[
+                                  styles.statusBadge,
+                                  {
+                                    backgroundColor: isBorrowed
+                                      ? "#f39c12" + "20" // Màu cam nhạt cho "Đã mượn"
+                                      : isAvailable
+                                        ? "#2ecc71" + "20" // Màu xanh nhạt cho "Có sẵn"
+                                        : "#e74c3c" + "20", // Màu đỏ nhạt cho "Không có sẵn"
+                                  },
+                                ]}
+                              >
+                                <View
+                                  style={[
+                                    styles.statusDot,
+                                    {
+                                      backgroundColor: isBorrowed
+                                        ? "#f39c12" // Màu cam cho "Đã mượn"
+                                        : isAvailable
+                                          ? "#2ecc71" // Màu xanh cho "Có sẵn"
+                                          : "#e74c3c", // Màu đỏ cho "Không có sẵn"
+                                    },
+                                  ]}
+                                />
+                                <Text
+                                  style={[
+                                    styles.statusText,
+                                    {
+                                      color: isBorrowed
+                                        ? "#f39c12" // Màu cam cho "Đã mượn"
+                                        : isAvailable
+                                          ? "#2ecc71" // Màu xanh cho "Có sẵn"
+                                          : "#e74c3c", // Màu đỏ cho "Không có sẵn"
+                                    },
+                                  ]}
+                                >
+                                  {isBorrowed
+                                    ? strings.borrowed || "Đã mượn"
+                                    : isAvailable
+                                      ? strings.available || "Có sẵn"
+                                      : strings.notAvailable || "Không có sẵn"}
+                                </Text>
+                              </View>
+                              {/* Hiển thị ngày hết hạn nếu đã mượn */}
+                              {isBorrowed && b.borrowDue && (
+                                <View style={styles.dueDateContainer}>
+                                  <Ionicons name="calendar-outline" size={12} color={colors.muted} />
+                                  <Text style={[styles.dueDate, { color: colors.muted }]}>
+                                    {strings.due || "Hạn"}: {b.borrowDue}
+                                  </Text>
+                                </View>
+                              )}
+                            </>
+                          );
+                        })()}
                       </View>
                     </View>
                   </TouchableOpacity>
