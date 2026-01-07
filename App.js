@@ -1,5 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import BookCategoryModal from "./components/BookCategoryModal/BookCategoryModal";
+import {
+  shouldShowBookCategoryModal,
+  markModalAsShown,
+  markModalAsCompleted,
+  saveBookCategoryPreferences,
+} from "./utils/bookCategoryPreferences";
 import StartScreen from "./screens/Start/StartScreen";
 import LoginScreen from "./screens/Login/LoginScreen";
 import RegisterScreen from "./screens/Register/RegisterScreen";
@@ -18,21 +25,23 @@ import LibraryCardScreen from "./screens/LibraryCard/LibraryCardScreen";
 import RoomBookingScreen from "./screens/RoomBooking/RoomBookingScreen";
 import BookedRoomsScreen from "./screens/BookedRooms/BookedRoomsScreen";
 import NotificationsScreen from "./screens/Notifications/NotificationsScreen";
+import FAQScreen from "./screens/FAQ/FAQScreen";
 import { themes, i18n } from "./utils/theme";
 import { storeToken, storeRefreshToken, storeUserInfo } from "./utils/api";
 
-const MOCK_MODE = false; // true = bỏ qua đăng nhập, false = dùng authentication
-const MOCK_START_SCREEN = "home"; // Màn hình bắt đầu: 'home', 'books', 'settings', 'chats', 'myBookshelf', 'bookDetail', etc.
+const MOCK_MODE = false; // chế độ mô phỏng: true = bỏ qua đăng nhập, false = dùng authentication
+const MOCK_START_SCREEN = "settings"; // màn hình bắt đầu: 'home', 'books', 'settings', 'chats', 'myBookshelf', 'bookDetail', etc.
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState(
     MOCK_MODE ? MOCK_START_SCREEN : "start"
-  ); // 'start', 'login', 'register', 'forgotPassword', 'home', 'books', 'bookDetail', 'chats', 'settings', 'editInformation', 'changePassword', 'myBookshelf', 'privacyPolicy', 'aboutUs'
-  const [previousScreen, setPreviousScreen] = useState(null); // Track previous screen for navigation back
-  const [myBookshelfActiveTab, setMyBookshelfActiveTab] = useState("borrowed"); // Track active tab in MyBookshelfScreen
-  const [theme, setTheme] = useState("light"); // 'light' | 'dark'
-  const [lang, setLang] = useState("vi"); // 'vi' | 'en'
+  );
+  const [previousScreen, setPreviousScreen] = useState(null);
+  const [myBookshelfActiveTab, setMyBookshelfActiveTab] = useState("borrowed");
+  const [theme, setTheme] = useState("light");
+  const [lang, setLang] = useState("vi");
   const [booksSearch, setBooksSearch] = useState("");
+  const [showBookCategoryModal, setShowBookCategoryModal] = useState(false);
 
   const strings = i18n[lang];
   const colors = useMemo(() => themes[theme], [theme]);
@@ -66,6 +75,52 @@ export default function App() {
       setupMockAuth();
     }
   }, []);
+
+  /**
+   * Check and show book category modal when user logs in or navigates to home
+   */
+  useEffect(() => {
+    const checkAndShowModal = async () => {
+      // Only show on home screen or after login
+      if (currentScreen === "home" || currentScreen === MOCK_START_SCREEN) {
+        const shouldShow = await shouldShowBookCategoryModal();
+        if (shouldShow) {
+          setShowBookCategoryModal(true);
+          await markModalAsShown();
+        }
+      }
+    };
+
+    checkAndShowModal();
+  }, [currentScreen]);
+
+  /**
+   * Handle book category modal continue
+   */
+  const handleBookCategoryContinue = async (preferences) => {
+    try {
+      await saveBookCategoryPreferences(preferences);
+      await markModalAsCompleted();
+      setShowBookCategoryModal(false);
+      console.log("[BookCategoryModal] Preferences saved:", preferences);
+    } catch (error) {
+      console.error("[BookCategoryModal] Error saving preferences:", error);
+      setShowBookCategoryModal(false);
+    }
+  };
+
+  /**
+   * Handle book category modal skip
+   */
+  const handleBookCategorySkip = async () => {
+    try {
+      await markModalAsCompleted();
+      setShowBookCategoryModal(false);
+    } catch (error) {
+      console.error("[BookCategoryModal] Error skipping:", error);
+      setShowBookCategoryModal(false);
+    }
+  };
 
   let screen = null;
 
@@ -148,6 +203,7 @@ export default function App() {
           if (key === "myBookshelf") setCurrentScreen("myBookshelf");
           if (key === "privacyPolicy") setCurrentScreen("privacyPolicy");
           if (key === "aboutUs") setCurrentScreen("aboutUs");
+          if (key === "faq") setCurrentScreen("faq");
           if (key === "bookedRooms") setCurrentScreen("bookedRooms");
         }}
       />
@@ -212,6 +268,18 @@ export default function App() {
   } else if (currentScreen === "aboutUs") {
     screen = (
       <AboutUsScreen
+        theme={theme}
+        lang={lang}
+        strings={strings}
+        colors={colors}
+        onNavigate={(key) => {
+          if (key === "settings") setCurrentScreen("settings");
+        }}
+      />
+    );
+  } else if (currentScreen === "faq") {
+    screen = (
+      <FAQScreen
         theme={theme}
         lang={lang}
         strings={strings}
@@ -361,6 +429,16 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {screen}
+      {/* Book Category Modal */}
+      <BookCategoryModal
+        visible={showBookCategoryModal}
+        onClose={() => setShowBookCategoryModal(false)}
+        onContinue={handleBookCategoryContinue}
+        onSkip={handleBookCategorySkip}
+        theme={theme}
+        colors={colors}
+        strings={strings}
+      />
     </GestureHandlerRootView>
   );
 }

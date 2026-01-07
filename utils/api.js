@@ -402,3 +402,91 @@ export const authAPI = {
     return response;
   },
 };
+
+// Room Booking API endpoints
+export const roomsAPI = {
+  /**
+   * Get available rooms
+   * @param {object} params - Query parameters
+   * @param {string} params.start_at - ISO 8601 datetime with timezone (required)
+   * @param {string} params.end_at - ISO 8601 datetime with timezone (required)
+   * @param {number} params.page - Page number (optional, default 1)
+   * @param {number} params.pageSize - Items per page (optional, default 20)
+   * @param {string} params.sortBy - Sort field: name, capacity, created_at (optional)
+   * @param {string} params.sortDir - Sort direction: asc, desc (optional)
+   * @returns {Promise<{items: Array, meta: object}>}
+   */
+  getRooms: async (params) => {
+    const queryParams = new URLSearchParams();
+    queryParams.append("start_at", params.start_at);
+    queryParams.append("end_at", params.end_at);
+    if (params.page) queryParams.append("page", params.page.toString());
+    if (params.pageSize)
+      queryParams.append("pageSize", params.pageSize.toString());
+    if (params.sortBy) queryParams.append("sortBy", params.sortBy);
+    if (params.sortDir) queryParams.append("sortDir", params.sortDir);
+
+    return await apiRequest(`/api/v1/rooms?${queryParams.toString()}`, {
+      method: "GET",
+    });
+  },
+};
+
+export const bookingsAPI = {
+  /**
+   * Create a new booking
+   * @param {object} bookingData - Booking data
+   * @param {string} bookingData.room_id - Room ID (UUID)
+   * @param {string} bookingData.start_at - ISO 8601 datetime with timezone (e.g., "2024-01-01T08:00:00+07:00")
+   * @param {string} bookingData.end_at - ISO 8601 datetime with timezone
+   * @param {string} bookingData.purpose - Purpose of booking (required, not empty)
+   * @param {number} bookingData.attendee_count - Number of attendees (1 <= count <= room.capacity)
+   * @returns {Promise<object>} Booking object
+   */
+  create: async (bookingData) => {
+    return await apiRequest("/api/v1/bookings", {
+      method: "POST",
+      body: JSON.stringify(bookingData),
+    });
+  },
+
+  /**
+   * Search bookings with criteria
+   * @param {object} criteria - Search criteria
+   * @param {number} criteria.page - Page number (optional, default 1)
+   * @param {number} criteria.pageSize - Items per page (optional, default 20)
+   * @param {Array} criteria.filters - Filter array (optional)
+   * @param {Array} criteria.sorts - Sort array (optional)
+   * @returns {Promise<{items: Array, meta: object}>}
+   */
+  search: async (criteria) => {
+    return await apiRequest("/api/v1/bookings/search", {
+      method: "POST",
+      body: JSON.stringify(criteria),
+    });
+  },
+
+  /**
+   * Get booking by ID
+   * @param {string} id - Booking ID
+   * @returns {Promise<object>} Booking object
+   */
+  getById: async (id) => {
+    return await apiRequest(`/api/v1/bookings/${id}`, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Cancel a booking
+   * @param {string} id - Booking ID
+   * @param {string} reason - Cancel reason
+   * @returns {Promise<object>} Updated booking object
+   */
+  cancel: async (id, reason) => {
+    return await apiRequest(`/api/v1/bookings/${id}/cancel`, {
+      method: "PATCH",
+      body: JSON.stringify({ reason }),
+    });
+  },
+};
