@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,13 @@ import {
   TextInput,
   Platform,
   Image,
+  Alert,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { createStyles } from "./MyBookshelf.styles";
 import {
-  mockBorrowedBooks,
-  mockFavoriteBooks,
-  mockSavedBooks,
   TABS,
   TAB_LABELS,
   STATUS_COLORS,
@@ -22,6 +22,7 @@ import {
   INITIAL_STATE,
 } from "./MyBookshelf.mock";
 import { PanResponder } from "react-native";
+import { booksAPI, borrowsAPI } from "../../utils/api";
 
 export default function MyBookshelfScreen({
   theme,
@@ -38,6 +39,11 @@ export default function MyBookshelfScreen({
   );
   const [searchQuery, setSearchQuery] = useState(INITIAL_STATE.searchQuery);
   const [showSearch, setShowSearch] = useState(INITIAL_STATE.showSearch);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [borrowedBooks, setBorrowedBooks] = useState([]);
+  const [favoriteBooks, setFavoriteBooks] = useState([]);
+  const [savedBooks, setSavedBooks] = useState([]);
 
   const currentTab = propActiveTab !== undefined ? propActiveTab : activeTab;
 
@@ -69,30 +75,181 @@ export default function MyBookshelfScreen({
   const getFilteredBooks = () => {
     let books = [];
     if (currentTab === TABS.BORROWED) {
-      books = mockBorrowedBooks;
+      books = borrowedBooks;
     } else if (currentTab === TABS.FAVORITES) {
-      books = mockFavoriteBooks;
+      books = favoriteBooks;
     } else if (currentTab === TABS.SAVED) {
-      books = mockSavedBooks;
+      books = savedBooks;
     }
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       return books.filter(
         (book) =>
-          book.title.toLowerCase().includes(query) ||
-          book.author.toLowerCase().includes(query)
+          (book.title || "").toLowerCase().includes(query) ||
+          (book.author || "").toLowerCase().includes(query)
       );
     }
     return books;
   };
 
-  const handleRenew = (bookId) => {
-    console.log("Renew book:", bookId);
+  const formatDateDisplay = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  const loadBorrowed = useCallback(
+    async (opts = {}) => {
+      const { silent = false } = opts;
+      if (!silent) setLoading(true);
+      try {
+        const res = await borrowsAPI.getBorrows({
+          page: 1,
+          limit: 50,
+          search: searchQuery.trim() || undefined,
+          status: "active",
+        });
+        const list = res.data || res || [];
+        const mapped = list.map((item) => {
+          const book = item.book || {};
+          const dueAt = item.dueAt || item.due_at || item.borrowDue;
+          const daysLeft =
+            item.daysLeft !== undefined
+              ? item.daysLeft
+              : Math.ceil(
+                  (new Date(dueAt) - new Date()) / (1000 * 60 * 60 * 24)
+                );
+          return {
+            id: item.id,
+            bookId: item.bookId || book.id,
+            title: book.title,
+            author: book.author,
+            cover: book.coverImage,
+            expirationDate: formatDateDisplay(dueAt),
+            daysLeft,
+            status: item.status || (daysLeft < 0 ? "expired" : "active"),
+            isExpired: item.isExpired ?? daysLeft < 0,
+            canRenew: item.canRenew ?? true,
+          };
+        });
+        setBorrowedBooks(mapped);
+      } catch (err) {
+        console.error("[MyBookshelf] loadBorrowed error:", err);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [searchQuery]
+  );
+
+  const loadFavorites = useCallback(
+    async (opts = {}) => {
+      const { silent = false } = opts;
+      if (!silent) setLoading(true);
+      try {
+        const res = await booksAPI.getFavorites({
+          page: 1,
+          limit: 50,
+          search: searchQuery.trim() || undefined,
+        });
+        const list = res.data || res || [];
+        const mapped = list.map((item) => {
+          const book = item.book || item;
+          return {
+            id: book.id || item.id,
+            title: book.title,
+            author: book.author,
+            cover: book.coverImage,
+          };
+        });
+        setFavoriteBooks(mapped);
+      } catch (err) {
+        console.error("[MyBookshelf] loadFavorites error:", err);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [searchQuery]
+  );
+
+  const loadSaved = useCallback(
+    async (opts = {}) => {
+      const { silent = false } = opts;
+      if (!silent) setLoading(true);
+      try {
+        const res = await booksAPI.getSaved({
+          page: 1,
+          limit: 50,
+          search: searchQuery.trim() || undefined,
+        });
+        const list = res.data || res || [];
+        const mapped = list.map((item) => {
+          const book = item.book || item;
+          return {
+            id: book.id || item.id,
+            title: book.title,
+            author: book.author,
+            cover: book.coverImage,
+          };
+        });
+        setSavedBooks(mapped);
+      } catch (err) {
+        console.error("[MyBookshelf] loadSaved error:", err);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [searchQuery]
+  );
+
+  const loadCurrentTab = useCallback(
+    async (opts = {}) => {
+      if (currentTab === TABS.BORROWED) {
+        await loadBorrowed(opts);
+      } else if (currentTab === TABS.FAVORITES) {
+        await loadFavorites(opts);
+      } else if (currentTab === TABS.SAVED) {
+        await loadSaved(opts);
+      }
+    },
+    [currentTab, loadBorrowed, loadFavorites, loadSaved]
+  );
+
+  useEffect(() => {
+    loadCurrentTab();
+  }, [loadCurrentTab]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadCurrentTab({ silent: true });
+    setRefreshing(false);
+  };
+
+  const handleRenew = async (borrowId) => {
+    try {
+      const res = await borrowsAPI.renewBorrow(borrowId);
+      Alert.alert("Thành công", "Đã gia hạn sách");
+      await loadBorrowed({ silent: true });
+      return res;
+    } catch (err) {
+      console.error("[MyBookshelf] renew error:", err);
+      Alert.alert("Lỗi", err.message || "Không thể gia hạn");
+    }
   };
 
   const getStatusInfo = (book) => {
-    const isExpired = book.status === "expired" || book.daysLeft < 0;
+    const isExpired =
+      book.isExpired === true ||
+      book.status === "expired" ||
+      (book.daysLeft !== undefined && book.daysLeft < 0);
     const statusColor = isExpired
       ? STATUS_COLORS.EXPIRED
       : book.daysLeft <= STATUS_THRESHOLD.WARNING_DAYS
@@ -342,21 +499,33 @@ export default function MyBookshelfScreen({
       )}
 
       {/* Content */}
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {getFilteredBooks().length > 0 ? (
-          getFilteredBooks().map((book) => renderBookItem(book))
-        ) : (
-          <View style={styles.emptyState}>
-            <Ionicons name="book-outline" size={64} color={colors.muted} />
-            <Text style={[styles.emptyText, { color: colors.muted }]}>
-              {getEmptyMessage()}
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+      {loading ? (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={colors.buttonBg} />
+          <Text style={[styles.emptyText, { color: colors.muted, marginTop: 12 }]}>
+            {strings.loading || "Đang tải..."}
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+        >
+          {getFilteredBooks().length > 0 ? (
+            getFilteredBooks().map((book) => renderBookItem(book))
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="book-outline" size={64} color={colors.muted} />
+              <Text style={[styles.emptyText, { color: colors.muted }]}>
+                {getEmptyMessage()}
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }

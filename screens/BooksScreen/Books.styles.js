@@ -209,8 +209,11 @@ export const createStyles = (colors) =>
       fontSize: 11,
       fontWeight: "500",
       opacity: 0.7,
-      flex: 1,
-      textAlign: "right",
+      marginLeft: 4,
+    },
+    dueDateContainer: {
+      flexDirection: "row",
+      alignItems: "center",
     },
     emptyContainer: {
       flex: 1,

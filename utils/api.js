@@ -15,16 +15,24 @@ const getBaseUrl = () => {
 
   const platform = Platform.OS;
   console.log("[API] Platform detected:", platform);
-  //localhost:3000/
-  //be-bklbr.onrender.com
-  // For Android emulator, use 10.0.2.2 instead of localhost
-  https: http: if (platform === "android") {
+
+  // For web platform, use localhost with http (not https)
+  if (platform === "web") {
+    const url = "http://localhost:3000";
+    console.log("[API] Using web URL:", url);
+    return url;
+  }
+
+  // For Android emulator
+  if (platform === "android") {
     const url = "https://be-bklbr.onrender.com";
     console.log("[API] Using Android emulator URL:", url);
     return url;
   }
 
-  // For iOS simulator and web, use localhost
+  // For iOS simulator and default, use production URL or localhost
+  // If running locally, use http://localhost:3000
+  // If using production, use https://be-bklbr.onrender.com
   const url = "https://be-bklbr.onrender.com";
   console.log("[API] Using default URL:", url);
   return url;
@@ -640,6 +648,89 @@ export const booksAPI = {
       method: "GET",
     });
   },
+
+  /**
+   * Toggle favorite status for a book
+   * @param {string} bookId - Book ID
+   * @returns {Promise<object>} Response with isFavorite status
+   */
+  toggleFavorite: async (bookId) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    const endpoint = `/books/${bookId}/favorite`;
+    return await apiRequest(endpoint, {
+      method: "POST",
+    });
+  },
+
+  /**
+   * Check if book is favorited by current user
+   * @param {string} bookId - Book ID
+   * @returns {Promise<{bookId: string, isFavorite: boolean, favoriteId: string|null}>}
+   */
+  checkFavorite: async (bookId) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    const endpoint = `/books/${bookId}/favorite`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Get list of favorite books with pagination
+   * @param {object} params - Query parameters
+   * @param {number} params.page - Page number (default: 1)
+   * @param {number} params.limit - Number of books per page (default: 20)
+   * @returns {Promise<{data: array, pagination: object}>}
+   */
+  getFavorites: async (params = {}) => {
+    const { page = 1, limit = 20 } = params;
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", page.toString());
+    queryParams.append("limit", limit.toString());
+
+    const endpoint = `/books/favorites?${queryParams.toString()}`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Get list of saved (bookmarked) books with pagination
+   * @param {object} params - Query parameters
+   * @param {number} params.page - Page number (default: 1)
+   * @param {number} params.limit - Number of books per page (default: 20)
+   * @returns {Promise<{data: array, pagination: object}>}
+   */
+  getSaved: async (params = {}) => {
+    const { page = 1, limit = 20 } = params;
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", page.toString());
+    queryParams.append("limit", limit.toString());
+
+    const endpoint = `/books/saved?${queryParams.toString()}`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Toggle save/bookmark status for a book
+   * @param {string} bookId - Book ID
+   * @returns {Promise<{bookId: string, isSaved: boolean, savedId?: string|null}>}
+   */
+  toggleSave: async (bookId) => {
+    if (!bookId) {
+      throw new Error("Book ID is required");
+    }
+    const endpoint = `/books/${bookId}/save`;
+    return await apiRequest(endpoint, {
+      method: "POST",
+    });
+  },
 };
 
 // Borrows API endpoints
@@ -691,5 +782,50 @@ export const borrowsAPI = {
     });
 
     return response;
+  },
+
+  /**
+   * Get list of borrowed books for current user
+   * @param {object} params - Query parameters
+   * @param {number} params.page - Page number (default: 1)
+   * @param {number} params.limit - Number of records per page (default: 20)
+   * @param {string} params.search - Search by book title/author
+   * @param {string} params.status - Filter by status (active/expired/returned)
+   */
+  getBorrows: async (params = {}) => {
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      status = "active",
+    } = params;
+
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", page.toString());
+    queryParams.append("limit", limit.toString());
+    if (search) queryParams.append("search", search);
+    if (status) queryParams.append("status", status);
+
+    const endpoint = `/borrows?${queryParams.toString()}`;
+    return await apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  /**
+   * Renew a borrowed book
+   * @param {string} borrowId - Borrow record ID
+   * @param {string} newDueAt - Optional new due date (ISO 8601)
+   */
+  renewBorrow: async (borrowId, newDueAt) => {
+    if (!borrowId) {
+      throw new Error("Borrow ID is required");
+    }
+    const endpoint = `/borrows/${borrowId}/renew`;
+    const body = newDueAt ? { newDueAt } : {};
+    return await apiRequest(endpoint, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
   },
 };

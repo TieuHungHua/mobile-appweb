@@ -88,6 +88,8 @@ export const createStyles = (colors) =>
       justifyContent: "center",
     },
     tag: {
+      flexDirection: "row",
+      alignItems: "center",
       paddingVertical: 6,
       paddingHorizontal: 10,
       borderRadius: 999,
@@ -99,6 +101,7 @@ export const createStyles = (colors) =>
     },
     actionRow: {
       flexDirection: "row",
+      flexWrap: "wrap",
       gap: 10,
       justifyContent: "center",
     },
@@ -157,6 +160,12 @@ export const createStyles = (colors) =>
       fontSize: 12,
       fontWeight: "600",
       textAlign: "center",
+    },
+    dueDateContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 4,
     },
     sheetOverlay: {
       position: "absolute",

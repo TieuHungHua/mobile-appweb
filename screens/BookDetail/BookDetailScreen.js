@@ -55,6 +55,10 @@ export default function BookDetailScreen({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [borrowing, setBorrowing] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
 
   // Load book detail from API
   const loadBookDetail = useCallback(async () => {
@@ -76,6 +80,29 @@ export default function BookDetailScreen({
       console.log("[BookDetail] Book description field:", bookData.description);
 
       setBook(bookData);
+
+      // Check borrow status from API response
+      setIsBorrowed(bookData.isBorrowed || false);
+      if (bookData.borrowDue) {
+        setBorrowDue(formatDateForDisplay(bookData.borrowDue));
+      } else if (bookData.dueAt) {
+        setBorrowDue(formatDateForDisplay(bookData.dueAt));
+      } else {
+        setBorrowDue(null);
+      }
+
+      // Check favorite status
+      try {
+        const favoriteStatus = await booksAPI.checkFavorite(initialBook.id);
+        setIsFavorite(favoriteStatus.isFavorite || false);
+      } catch (favErr) {
+        console.log("[BookDetail] Could not check favorite status:", favErr);
+        // Fallback to API response if available
+        setIsFavorite(bookData.isFavorite || false);
+      }
+
+      // Check saved status from API response
+      setIsSaved(bookData.isSaved || false);
     } catch (err) {
       console.error("Error loading book detail:", err);
       setError(err.message || "Không thể tải thông tin sách");
@@ -190,7 +217,11 @@ export default function BookDetailScreen({
 
       // Update local state
       setIsBorrowed(true);
-      setBorrowDue(formatDateForDisplay(result.dueAt));
+      if (result.dueAt) {
+        setBorrowDue(formatDateForDisplay(result.dueAt));
+      } else if (result.due_at) {
+        setBorrowDue(formatDateForDisplay(result.due_at));
+      }
 
       // Update book state immediately
       setBook((prevBook) => {
@@ -198,7 +229,8 @@ export default function BookDetailScreen({
         return {
           ...prevBook,
           availableCopies: Math.max(0, (prevBook.availableCopies || 0) - 1),
-          status: "không có sẵn", // Update status
+          isBorrowed: true,
+          borrowDue: result.dueAt || result.due_at,
         };
       });
 
@@ -237,7 +269,108 @@ export default function BookDetailScreen({
     } finally {
       setBorrowing(false);
     }
-  }, [book, selectedDueDate, loadBookDetail]);
+  }, [book, selectedDueDate, agreeToTerms, loadBookDetail]);
+
+  // Handle toggle favorite - Optimistic update
+  const handleToggleFavorite = useCallback(async () => {
+    if (!book?.id) {
+      Alert.alert("Lỗi", "Không có thông tin sách");
+      return;
+    }
+
+    // Optimistic update: Cập nhật UI ngay lập tức
+    const previousFavorite = isFavorite;
+    const previousLikeCount = book.likeCount || 0;
+    const newFavoriteState = !isFavorite;
+
+    setIsFavorite(newFavoriteState);
+
+    // Update likeCount optimistically
+    setBook((prevBook) => {
+      if (!prevBook) return prevBook;
+      return {
+        ...prevBook,
+        likeCount: newFavoriteState
+          ? (prevBook.likeCount || 0) + 1
+          : Math.max(0, (prevBook.likeCount || 0) - 1),
+      };
+    });
+
+    // Gọi API nền (không block UI)
+    booksAPI.toggleFavorite(book.id)
+      .then((result) => {
+        console.log("[BookDetail] Toggle favorite result:", result);
+
+        // Cập nhật state từ server response (để đảm bảo sync)
+        if (result.isFavorite !== undefined) {
+          setIsFavorite(result.isFavorite);
+        }
+
+        // Update book likeCount from server
+        if (result.likeCount !== undefined) {
+          setBook((prevBook) => {
+            if (!prevBook) return prevBook;
+            return {
+              ...prevBook,
+              likeCount: result.likeCount,
+            };
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("[BookDetail] Toggle favorite error:", error);
+
+        // Revert lại trạng thái cũ nếu có lỗi
+        setIsFavorite(previousFavorite);
+        setBook((prevBook) => {
+          if (!prevBook) return prevBook;
+          return {
+            ...prevBook,
+            likeCount: previousLikeCount,
+          };
+        });
+
+        // Hiển thị thông báo lỗi
+        let errorMessage = "Không thể cập nhật yêu thích. Vui lòng thử lại.";
+        if (error.message) {
+          if (error.message.includes("Unauthorized")) {
+            errorMessage = "Vui lòng đăng nhập để yêu thích sách";
+          } else {
+            errorMessage = error.message;
+          }
+        }
+        Alert.alert("Lỗi", errorMessage);
+      });
+  }, [book, isFavorite]);
+
+  // Handle save/bookmark - Optimistic update
+  const handleSave = useCallback(async () => {
+    if (!book?.id) {
+      Alert.alert("Lỗi", "Không có thông tin sách");
+      return;
+    }
+
+    // Optimistic update: Cập nhật UI ngay lập tức
+    const previousSaved = isSaved;
+    const newSavedState = !isSaved;
+
+    setIsSaved(newSavedState);
+
+    // TODO: Gọi API save/bookmark nếu có
+    // Tạm thời chỉ update UI, khi có API thì implement tương tự handleToggleFavorite
+    // booksAPI.toggleSave(book.id)
+    //   .then((result) => {
+    //     if (result.isSaved !== undefined) {
+    //       setIsSaved(result.isSaved);
+    //     }
+    //   })
+    //   .catch((error) => {
+    //     console.error("[BookDetail] Save error:", error);
+    //     // Revert lại trạng thái cũ nếu có lỗi
+    //     setIsSaved(previousSaved);
+    //     Alert.alert("Lỗi", "Không thể lưu sách. Vui lòng thử lại.");
+    //   });
+  }, [book, isSaved]);
 
   // Prepare detail sections from book data
   const detailSections = useMemo(() => {
@@ -450,27 +583,7 @@ export default function BookDetailScreen({
               {book.author || "Không có tác giả"}
             </Text>
             <View style={styles.tagRow}>
-              <View
-                style={[
-                  styles.tag,
-                  isBorrowed || (book.status === "không có sẵn" || book.availableCopies === 0)
-                    ? { backgroundColor: "#fef4e6", borderColor: "#f39c12" }
-                    : { backgroundColor: "#e8f5e9", borderColor: "#2ecc71" },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.tagText,
-                    { color: isBorrowed || (book.status === "không có sẵn" || book.availableCopies === 0) ? "#f39c12" : "#2ecc71" },
-                  ]}
-                >
-                  {isBorrowed
-                    ? strings.borrowed || "Đã mượn"
-                    : book.status === "có sẵn" || book.availableCopies > 0
-                      ? strings.available || "Có sẵn"
-                      : strings.borrowed || "Không có sẵn"}
-                </Text>
-              </View>
+              {/* Số lượng bản in */}
               <View
                 style={[
                   styles.tag,
@@ -483,14 +596,53 @@ export default function BookDetailScreen({
                 <Text style={[styles.tagText, { color: colors.text }]}>
                   {book.availableCopies !== undefined
                     ? `${book.availableCopies} bản có sẵn`
-                    : book.status || "N/A"}
+                    : book.totalCopies !== undefined
+                      ? `${book.totalCopies} bản in`
+                      : "N/A"}
                 </Text>
               </View>
+              {/* Trạng thái yêu thích */}
+              {isFavorite && (
+                <View
+                  style={[
+                    styles.tag,
+                    {
+                      backgroundColor: "#fff3e0",
+                      borderColor: "#f6c344",
+                    },
+                  ]}
+                >
+                  <Ionicons name="heart" size={12} color="#f6c344" style={{ marginRight: 4 }} />
+                  <Text style={[styles.tagText, { color: "#f6c344" }]}>
+                    {strings.favorited || "Đã yêu thích"}
+                  </Text>
+                </View>
+              )}
+              {/* Trạng thái đã lưu */}
+              {isSaved && (
+                <View
+                  style={[
+                    styles.tag,
+                    {
+                      backgroundColor: "#e3f2fd",
+                      borderColor: colors.buttonBg,
+                    },
+                  ]}
+                >
+                  <Ionicons name="bookmark" size={12} color={colors.buttonBg} style={{ marginRight: 4 }} />
+                  <Text style={[styles.tagText, { color: colors.buttonBg }]}>
+                    {strings.saved || "Đã lưu"}
+                  </Text>
+                </View>
+              )}
             </View>
             {isBorrowed && borrowDue && (
-              <Text style={[styles.bookMetaCenter, { color: colors.muted }]}>
-                {strings.due || "Hạn"}: {borrowDue}
-              </Text>
+              <View style={styles.dueDateContainer}>
+                <Ionicons name="calendar-outline" size={14} color={colors.muted} />
+                <Text style={[styles.bookMetaCenter, { color: colors.muted, marginLeft: 4 }]}>
+                  {strings.due || "Hạn trả"}: {borrowDue}
+                </Text>
+              </View>
             )}
             {book.categories && Array.isArray(book.categories) && book.categories.length > 0 && (
               <View style={styles.tagRow}>
@@ -520,28 +672,93 @@ export default function BookDetailScreen({
               style={[
                 styles.actionChip,
                 {
-                  backgroundColor: isBorrowed ? colors.inputBg : colors.buttonBg,
+                  backgroundColor:
+                    isBorrowed || (book.availableCopies === 0 || book.status === "không có sẵn")
+                      ? colors.inputBg
+                      : colors.buttonBg,
                   borderColor: colors.inputBorder,
-                  borderWidth: isBorrowed ? 1 : 0,
+                  borderWidth: isBorrowed || (book.availableCopies === 0 || book.status === "không có sẵn") ? 1 : 0,
+                  opacity: isBorrowed || (book.availableCopies === 0 || book.status === "không có sẵn") ? 0.6 : 1,
                 },
               ]}
-              disabled={isBorrowed}
+              disabled={isBorrowed || borrowing || (book.availableCopies === 0 || book.status === "không có sẵn")}
               onPress={() => setShowBorrowSheet(true)}
             >
               <Ionicons
                 name="library-outline"
                 size={16}
-                color={isBorrowed ? colors.text : colors.buttonText}
+                color={
+                  isBorrowed || (book.availableCopies === 0 || book.status === "không có sẵn")
+                    ? colors.text
+                    : colors.buttonText
+                }
               />
               <Text
                 style={[
                   styles.actionText,
-                  { color: isBorrowed ? colors.text : colors.buttonText },
+                  {
+                    color:
+                      isBorrowed || (book.availableCopies === 0 || book.status === "không có sẵn")
+                        ? colors.text
+                        : colors.buttonText
+                  },
                 ]}
               >
                 {isBorrowed
                   ? strings.borrowed || "Đã mượn"
-                  : strings.borrow || "Mượn"}
+                  : (book.availableCopies === 0 || book.status === "không có sẵn")
+                    ? strings.notAvailable || "Không có sẵn"
+                    : strings.borrow || "Mượn"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.actionChip,
+                {
+                  backgroundColor: isFavorite ? "#f6c344" : colors.inputBg,
+                  borderColor: colors.inputBorder,
+                  borderWidth: 1,
+                },
+              ]}
+              onPress={handleToggleFavorite}
+            >
+              <Ionicons
+                name={isFavorite ? "heart" : "heart-outline"}
+                size={16}
+                color={isFavorite ? "#1f1f1f" : colors.text}
+              />
+              <Text
+                style={[
+                  styles.actionText,
+                  { color: isFavorite ? "#1f1f1f" : colors.text },
+                ]}
+              >
+                {strings.favorite || "Yêu thích"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.actionChip,
+                {
+                  backgroundColor: isSaved ? colors.buttonBg : colors.inputBg,
+                  borderColor: colors.inputBorder,
+                  borderWidth: 1,
+                },
+              ]}
+              onPress={handleSave}
+            >
+              <Ionicons
+                name={isSaved ? "bookmark" : "bookmark-outline"}
+                size={16}
+                color={isSaved ? colors.buttonText : colors.text}
+              />
+              <Text
+                style={[
+                  styles.actionText,
+                  { color: isSaved ? colors.buttonText : colors.text },
+                ]}
+              >
+                {strings.save || "Lưu"}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
