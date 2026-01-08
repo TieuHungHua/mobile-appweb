@@ -121,10 +121,10 @@ export default function MyBookshelfScreen({
         // Load cả sách đang mượn và đã trả
         const [activeRes, returnedRes] = await Promise.all([
           borrowsAPI.getBorrows({
-          page: 1,
-          limit: 50,
-          search: searchQuery.trim() || undefined,
-          status: "active",
+            page: 1,
+            limit: 50,
+            search: searchQuery.trim() || undefined,
+            status: "active",
           }),
           borrowsAPI.getBorrows({
             page: 1,
@@ -133,26 +133,26 @@ export default function MyBookshelfScreen({
             status: "returned",
           }),
         ]);
-        
+
         const activeList = activeRes.data || activeRes || [];
         const returnedList = returnedRes.data || returnedRes || [];
         // Sắp xếp: sách đang mượn trước, sách đã trả sau
         const allList = [...activeList, ...returnedList];
-        
+
         const mapped = allList.map((item) => {
           const book = item.book || {};
           const dueAt = item.dueAt || item.due_at || item.borrowDue;
           const returnedAt = item.returnedAt || item.returned_at;
           const isReturned = item.status === "returned" || !!returnedAt;
-          
+
           const daysLeft = isReturned
             ? null
             : item.daysLeft !== undefined
               ? item.daysLeft
               : Math.ceil(
-                  (new Date(dueAt) - new Date()) / (1000 * 60 * 60 * 24)
-                );
-          
+                (new Date(dueAt) - new Date()) / (1000 * 60 * 60 * 24)
+              );
+
           return {
             id: item.id,
             bookId: item.bookId || book.id,
@@ -226,24 +226,29 @@ export default function MyBookshelfScreen({
       const { silent = false } = opts;
       if (!silent) setLoading(true);
       try {
-        const res = await booksAPI.getSaved({
-          page: 1,
-          limit: 50,
-          search: searchQuery.trim() || undefined,
-        });
-        const list = res.data || res || [];
-        const mapped = list.map((item) => {
-          const book = item.book || item;
-          return {
-            id: book.id || item.id,
-            title: book.title,
-            author: book.author,
-            cover: book.coverImage,
-          };
-        });
-        setSavedBooks(mapped);
+        // TODO: API chưa hoàn thiện, tạm thời không gọi API
+        // const res = await booksAPI.getSaved({
+        //   page: 1,
+        //   limit: 50,
+        //   search: searchQuery.trim() || undefined,
+        // });
+        // const list = res.data || res || [];
+        // const mapped = list.map((item) => {
+        //   const book = item.book || item;
+        //   return {
+        //     id: book.id || item.id,
+        //     title: book.title,
+        //     author: book.author,
+        //     cover: book.coverImage,
+        //   };
+        // });
+        // setSavedBooks(mapped);
+
+        // Tạm thời set empty array
+        setSavedBooks([]);
       } catch (err) {
         console.error("[MyBookshelf] loadSaved error:", err);
+        setSavedBooks([]);
       } finally {
         if (!silent) setLoading(false);
       }
@@ -293,7 +298,7 @@ export default function MyBookshelfScreen({
 
     // Tính số ngày còn lại
     const daysLeft = book.daysLeft || 0;
-    
+
     // Tính số ngày tối đa có thể gia hạn: tổng thời gian < 30 ngày
     // maxDays = 29 - daysLeft (để đảm bảo tổng < 30, không được <= 30)
     const maxDays = Math.max(1, Math.min(30, 29 - daysLeft));
@@ -325,12 +330,12 @@ export default function MyBookshelfScreen({
             "Thành công",
             strings.renewSuccess || `Đã gia hạn thêm ${option.value} ngày`
           );
-      await loadBorrowed({ silent: true });
-      return res;
-    } catch (err) {
-      console.error("[MyBookshelf] renew error:", err);
-      Alert.alert("Lỗi", err.message || "Không thể gia hạn");
-    }
+          await loadBorrowed({ silent: true });
+          return res;
+        } catch (err) {
+          console.error("[MyBookshelf] renew error:", err);
+          Alert.alert("Lỗi", err.message || "Không thể gia hạn");
+        }
       },
     }));
 
@@ -384,7 +389,7 @@ export default function MyBookshelfScreen({
         statusText: strings.returned || "Đã trả",
       };
     }
-    
+
     const isExpired =
       book.isExpired === true ||
       book.status === "expired" ||
@@ -392,14 +397,14 @@ export default function MyBookshelfScreen({
     const statusColor = isExpired
       ? STATUS_COLORS.EXPIRED
       : book.daysLeft <= STATUS_THRESHOLD.WARNING_DAYS
-      ? STATUS_COLORS.WARNING
-      : STATUS_COLORS.ACTIVE;
+        ? STATUS_COLORS.WARNING
+        : STATUS_COLORS.ACTIVE;
 
     const statusText = isExpired
       ? strings.expired || "Hết hạn"
       : book.daysLeft === STATUS_THRESHOLD.ONE_DAY
-      ? strings.oneDayLeft || "1 ngày nữa"
-      : `${book.daysLeft} ${strings.daysLeft || "ngày nữa"}`;
+        ? strings.oneDayLeft || "1 ngày nữa"
+        : `${book.daysLeft} ${strings.daysLeft || "ngày nữa"}`;
 
     return { isExpired, isReturned: false, statusColor, statusText };
   };
@@ -450,9 +455,9 @@ export default function MyBookshelfScreen({
                 {strings.returnedDate || "Ngày trả"}: {book.returnedDate || book.expirationDate}
               </Text>
             ) : (
-            <Text style={[styles.expirationDate, { color: colors.muted }]}>
-              {strings.expirationDate || "Thời hạn"}: {book.expirationDate}
-            </Text>
+              <Text style={[styles.expirationDate, { color: colors.muted }]}>
+                {strings.expirationDate || "Thời hạn"}: {book.expirationDate}
+              </Text>
             )}
             <View
               style={[
@@ -515,18 +520,18 @@ export default function MyBookshelfScreen({
                         {strings.return || "Trả sách"}
                       </Text>
                     </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.renewButton,
+                    <TouchableOpacity
+                      style={[
+                        styles.renewButton,
                         { backgroundColor: STATUS_COLORS.RENEW, flex: 1 },
-                ]}
-                onPress={() => handleRenew(book.id)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.renewButtonText, { color: "#fff" }]}>
-                  {strings.renew || "Gia hạn"}
-                </Text>
-              </TouchableOpacity>
+                      ]}
+                      onPress={() => handleRenew(book.id)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.renewButtonText, { color: "#fff" }]}>
+                        {strings.renew || "Gia hạn"}
+                      </Text>
+                    </TouchableOpacity>
                   </>
                 )}
               </View>
