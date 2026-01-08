@@ -288,28 +288,6 @@ export default function ChatScreen({ theme, strings, colors, onNavigate }) {
     strings
   );
 
-  if (isLoading) {
-    return (
-      <View
-        style={[
-          styles.container,
-          {
-            backgroundColor: colors.background,
-            justifyContent: "center",
-            alignItems: "center",
-          },
-        ]}
-      >
-        <ActivityIndicator size="large" color={colors.buttonBg} />
-        <Text
-          style={[styles.loadingText, { color: colors.text, marginTop: 16 }]}
-        >
-          {strings?.chatStatusConnecting || "Đang kết nối..."}
-        </Text>
-      </View>
-    );
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={theme === "dark" ? "light" : "dark"} />
@@ -356,7 +334,25 @@ export default function ChatScreen({ theme, strings, colors, onNavigate }) {
         contentContainerStyle={styles.messages}
         showsVerticalScrollIndicator={false}
       >
-        {messages.length === 0 ? (
+        {isLoading ? (
+          <View
+            style={[
+              styles.emptyContainer,
+              {
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: 200,
+              },
+            ]}
+          >
+            <ActivityIndicator size="large" color={colors.buttonBg} />
+            <Text
+              style={[styles.emptyText, { color: colors.muted, marginTop: 16 }]}
+            >
+              {strings?.chatStatusConnecting || "Đang kết nối..."}
+            </Text>
+          </View>
+        ) : messages.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View
               style={[
