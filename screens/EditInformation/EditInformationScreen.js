@@ -26,7 +26,7 @@ import {
   SUCCESS_MESSAGES,
   PERMISSION_MESSAGES,
 } from "./EditInformation.mock";
-import { getStoredUserInfo, userAPI } from "../../utils/api";
+import { getStoredUserInfo, storeUserInfo, userAPI } from "../../utils/api";
 
 export default function EditInformationScreen({
   theme,
@@ -349,6 +349,28 @@ export default function EditInformationScreen({
 
       // Call API to update profile with FormData
       const response = await userAPI.updateProfile(updateData);
+
+      // Update stored user info with new data
+      // The API response should contain updated user object
+      if (response.user) {
+        // Merge updated fields with existing user info
+        const currentUserInfo = await getStoredUserInfo();
+        const updatedUserInfo = {
+          ...currentUserInfo,
+          ...response.user,
+          // Ensure all fields are updated
+          displayName: response.user.displayName || fullName.trim(),
+          email: response.user.email || email.trim(),
+          studentId: response.user.studentId || studentId.trim(),
+          classMajor: response.user.classMajor || classMajor.trim(),
+          dateOfBirth: response.user.dateOfBirth || dateOfBirth.trim(),
+          gender: response.user.gender || (gender === GENDER.FEMALE ? "female" : (gender === "other" || gender === GENDER.OTHER ? "other" : "male")),
+          avatar: response.user.avatar || avatarUri,
+        };
+        // Save updated user info
+        await storeUserInfo(updatedUserInfo);
+        console.log("[EditInformation] Updated user info saved:", updatedUserInfo);
+      }
 
       setShowPasswordModal(false);
       setPassword("");

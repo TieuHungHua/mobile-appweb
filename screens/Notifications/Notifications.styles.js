@@ -109,6 +109,36 @@ export const createStyles = (colors) =>
     emptyText: {
       fontSize: 16,
       fontWeight: "600",
+      textAlign: "center",
+      paddingHorizontal: 20,
+    },
+    emptySubText: {
+      fontSize: 13,
+      fontWeight: "400",
+      textAlign: "center",
+      paddingHorizontal: 20,
+      lineHeight: 18,
+    },
+    loadingContainer: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 60,
+      gap: 16,
+    },
+    loadingText: {
+      fontSize: 14,
+      fontWeight: "500",
+    },
+    bookTitleText: {
+      fontSize: 13,
+      fontWeight: "600",
+      marginTop: 4,
+    },
+    daysLeftText: {
+      fontSize: 12,
+      fontWeight: "500",
+      marginTop: 2,
     },
   });
 

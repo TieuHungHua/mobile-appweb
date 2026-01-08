@@ -28,7 +28,10 @@ import BookedRoomsScreen from "./screens/BookedRooms/BookedRoomsScreen";
 import NotificationsScreen from "./screens/Notifications/NotificationsScreen";
 import FAQScreen from "./screens/FAQ/FAQScreen";
 import { themes, i18n } from "./utils/theme";
-import { storeToken, storeRefreshToken, storeUserInfo } from "./utils/api";
+import { storeToken, storeRefreshToken, storeUserInfo, getStoredUserInfo } from "./utils/api";
+
+// FCM service đã được bỏ - chỉ dùng NotificationLog API
+
 
 const MOCK_MODE = false; // chế độ mô phỏng: true = bỏ qua đăng nhập, false = dùng authentication
 const MOCK_START_SCREEN = "settings"; // màn hình bắt đầu: 'home', 'books', 'settings', 'chats', 'myBookshelf', 'bookDetail', etc.
@@ -96,6 +99,9 @@ export default function App() {
 
     checkAndShowModal();
   }, [currentScreen]);
+
+  // FCM push notifications đã được bỏ
+  // Chỉ dùng NotificationLog API để lấy danh sách thông báo
 
   /**
    * Handle book category modal continue
@@ -379,8 +385,25 @@ export default function App() {
         lang={lang}
         strings={strings}
         colors={colors}
-        onNavigate={(key) => {
-          if (key === "home") setCurrentScreen("home");
+        onNavigate={(key, params) => {
+          if (key === "home") {
+            setCurrentScreen("home");
+          } else if (key === "myBookshelf") {
+            if (params?.activeTab) {
+              setMyBookshelfActiveTab(params.activeTab);
+            }
+            setCurrentScreen("myBookshelf");
+          } else if (key === "bookDetail") {
+            if (params?.book) {
+              setSelectedBook(params.book);
+            } else if (params?.bookId) {
+              // Nếu chỉ có bookId, cần fetch book data
+              // Tạm thời set selectedBook với bookId để BookDetailScreen có thể fetch
+              setSelectedBook({ id: params.bookId });
+            }
+            setPreviousScreen("notifications");
+            setCurrentScreen("bookDetail");
+          }
         }}
       />
     );

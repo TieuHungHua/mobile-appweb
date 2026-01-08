@@ -421,7 +421,7 @@ export const createStyles = (colors) =>
     termsLink: {
       fontWeight: "700",
       textDecorationLine: "underline",
-  },
+    },
   // Comments styles
   commentsSection: {
     marginTop: 24,
@@ -575,4 +575,4 @@ export const createStyles = (colors) =>
     fontSize: 13,
     lineHeight: 18,
   },
-});
+  });

@@ -72,7 +72,7 @@ export const i18n = {
     forgotPassword: "Quên mật khẩu?",
     loginTitle: "Đăng nhập",
     registerTitle: "Đăng kí tài khoản",
-    reading: "Đang đọc",
+    reading: "Xu hướng đọc",
     featured: "Sách nổi bật",
     monthly: "Thống kê theo tháng",
     returned: "Trả",

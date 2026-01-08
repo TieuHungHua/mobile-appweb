@@ -1030,4 +1030,130 @@ export const userAPI = {
       throw error;
     }
   },
+
+  /**
+   * Get student statistics
+   * GET /users/stats/student
+   * API tự động lấy 5 tháng gần nhất từ tháng hiện tại
+   * @returns {Promise<Object>} Response with monthlyStats (array of 5 months), activityScore, and popularBooks
+   */
+  getStudentStats: async () => {
+    const endpoint = `/users/stats/student`;
+    return await apiRequest(endpoint, { method: "GET" });
+  },
+};
+
+// ==================== Notifications API ====================
+export const notificationsAPI = {
+  /**
+   * Get list of notification logs for current user
+   * GET /notifications/logs
+   * @param {Object} params - Query parameters
+   * @param {number} params.page - Page number (default: 1)
+   * @param {number} params.limit - Items per page (default: 20)
+   * @param {string} params.status - Filter by status ('pending', 'sent', 'failed')
+   * @param {string} params.userId - Filter by user ID
+   * @param {string} params.borrowId - Filter by borrow ID
+   * @param {boolean} params.isRead - Filter by read status (true/false)
+   * @returns {Promise<Object>} Response with notifications array and pagination
+   */
+  getNotifications: async (params = {}) => {
+    const { page = 1, limit = 20, status, userId, borrowId, isRead } = params;
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", page.toString());
+    queryParams.append("limit", limit.toString());
+    if (status) queryParams.append("status", status);
+    if (userId) queryParams.append("userId", userId);
+    if (borrowId) queryParams.append("borrowId", borrowId);
+    if (isRead !== undefined) queryParams.append("isRead", isRead.toString());
+
+    const endpoint = `/notifications/logs?${queryParams.toString()}`;
+    return await apiRequest(endpoint, { method: "GET" });
+  },
+
+  /**
+   * Get unread notifications count
+   * GET /notifications/logs?isRead=false để lấy số lượng chưa đọc
+   * @returns {Promise<Object>} Response with count
+   */
+  getUnreadCount: async () => {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append("page", "1");
+      queryParams.append("limit", "1");
+      queryParams.append("isRead", "false");
+      const endpoint = `/notifications/logs?${queryParams.toString()}`;
+      const res = await apiRequest(endpoint, { method: "GET" });
+
+      // Nếu có pagination, lấy total từ đó
+      if (res.pagination && res.pagination.total !== undefined) {
+        return { count: res.pagination.total };
+      }
+
+      // Nếu không có pagination, đếm số lượng
+      const data = res.data || res || [];
+      return { count: Array.isArray(data) ? data.length : 0 };
+    } catch (err) {
+      console.error("[NotificationsAPI] Error getting unread count:", err);
+      return { count: 0 };
+    }
+  },
+
+  /**
+   * Get notification log detail by ID
+   * GET /notifications/logs/:id
+   * @param {string} notificationId - Notification ID
+   * @returns {Promise<Object>} Response with notification detail
+   */
+  getNotificationById: async (notificationId) => {
+    if (!notificationId) {
+      throw new Error("Notification ID is required");
+    }
+    const endpoint = `/notifications/logs/${notificationId}`;
+    return await apiRequest(endpoint, { method: "GET" });
+  },
+
+  /**
+   * Mark a notification as read
+   * PATCH /notifications/logs/:id/read
+   * Tự động set readAt = now()
+   * @param {string} notificationId - Notification ID
+   * @returns {Promise<Object>} Response
+   */
+  markAsRead: async (notificationId) => {
+    if (!notificationId) {
+      throw new Error("Notification ID is required");
+    }
+    const endpoint = `/notifications/logs/${notificationId}/read`;
+    return await apiRequest(endpoint, {
+      method: "PATCH",
+    });
+  },
+
+  /**
+   * Mark all notifications as read
+   * PATCH /notifications/logs/read-all
+   * Đánh dấu tất cả thông báo chưa đọc của user hiện tại đã đọc
+   * @returns {Promise<Object>} Response with message and count
+   */
+  markAllAsRead: async () => {
+    const endpoint = `/notifications/logs/read-all`;
+    return await apiRequest(endpoint, {
+      method: "PATCH",
+    });
+  },
+
+  /**
+   * Delete a notification
+   * DELETE /notifications/logs/:id
+   * @param {string} notificationId - Notification ID
+   * @returns {Promise<Object>} Response
+   */
+  deleteNotification: async (notificationId) => {
+    if (!notificationId) {
+      throw new Error("Notification ID is required");
+    }
+    const endpoint = `/notifications/logs/${notificationId}`;
+    return await apiRequest(endpoint, { method: "DELETE" });
+  },
 };

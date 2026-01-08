@@ -119,12 +119,12 @@ export default function BooksScreen({
             // Đảm bảo isFavorite là boolean
             const isFavorite = Boolean(book.isFavorite);
 
-            return {
-              ...book,
+              return {
+                ...book,
               isBorrowed, // Đảm bảo là boolean
               borrowDue,  // Format date hoặc null
               isFavorite, // Đảm bảo là boolean
-            };
+              };
           });
         }
 
@@ -266,10 +266,10 @@ export default function BooksScreen({
       console.log("[BooksScreen] Borrow success:", result);
 
       // Update books list immediately
-      const formattedDueDate = result.dueAt || result.due_at
+      const formattedDueDate = result.dueAt || result.due_at 
         ? formatDateForDisplay(result.dueAt || result.due_at)
         : null;
-
+      
       setBooks((prevBooks) => {
         return prevBooks.map((b) => {
           if (b.id === selectedBook.id) {
@@ -763,58 +763,58 @@ export default function BooksScreen({
 
                           return (
                             <>
-                              <View
-                                style={[
-                                  styles.statusBadge,
-                                  {
+                          <View
+                            style={[
+                              styles.statusBadge,
+                              {
                                     backgroundColor: isBorrowed
                                       ? "#f39c12" + "20" // Màu cam nhạt cho "Đã mượn"
                                       : isAvailable
                                         ? "#2ecc71" + "20" // Màu xanh nhạt cho "Có sẵn"
                                         : "#e74c3c" + "20", // Màu đỏ nhạt cho "Không có sẵn"
-                                  },
-                                ]}
-                              >
-                                <View
-                                  style={[
-                                    styles.statusDot,
-                                    {
+                              },
+                            ]}
+                          >
+                            <View
+                              style={[
+                                styles.statusDot,
+                                {
                                       backgroundColor: isBorrowed
                                         ? "#f39c12" // Màu cam cho "Đã mượn"
                                         : isAvailable
                                           ? "#2ecc71" // Màu xanh cho "Có sẵn"
                                           : "#e74c3c", // Màu đỏ cho "Không có sẵn"
-                                    },
-                                  ]}
-                                />
-                                <Text
-                                  style={[
-                                    styles.statusText,
-                                    {
+                                },
+                              ]}
+                            />
+                            <Text
+                              style={[
+                                styles.statusText,
+                                {
                                       color: isBorrowed
                                         ? "#f39c12" // Màu cam cho "Đã mượn"
                                         : isAvailable
                                           ? "#2ecc71" // Màu xanh cho "Có sẵn"
                                           : "#e74c3c", // Màu đỏ cho "Không có sẵn"
-                                    },
-                                  ]}
-                                >
+                                },
+                              ]}
+                            >
                                   {isBorrowed
                                     ? strings.borrowed || "Đã mượn"
                                     : isAvailable
-                                      ? strings.available || "Có sẵn"
-                                      : strings.notAvailable || "Không có sẵn"}
-                                </Text>
-                              </View>
-                              {/* Hiển thị ngày hết hạn nếu đã mượn */}
+                                ? strings.available || "Có sẵn"
+                                : strings.notAvailable || "Không có sẵn"}
+                            </Text>
+                          </View>
+                        {/* Hiển thị ngày hết hạn nếu đã mượn */}
                               {isBorrowed && b.borrowDue && (
-                                <View style={styles.dueDateContainer}>
-                                  <Ionicons name="calendar-outline" size={12} color={colors.muted} />
-                                  <Text style={[styles.dueDate, { color: colors.muted }]}>
-                                    {strings.due || "Hạn"}: {b.borrowDue}
-                                  </Text>
-                                </View>
-                              )}
+                          <View style={styles.dueDateContainer}>
+                            <Ionicons name="calendar-outline" size={12} color={colors.muted} />
+                            <Text style={[styles.dueDate, { color: colors.muted }]}>
+                              {strings.due || "Hạn"}: {b.borrowDue}
+                            </Text>
+                          </View>
+                        )}
                             </>
                           );
                         })()}

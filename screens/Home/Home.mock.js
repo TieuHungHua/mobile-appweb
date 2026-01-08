@@ -6,8 +6,8 @@ export const mockFeatured = [
 ];
 
 export const mockReading = [
-  { title: "Sapiens", progress: 0.55 },
-  { title: "Atomic Habits", progress: 0.32 },
+  { title: "Tiểu thuyết", progress: 0.55 },
+  { title: "Công nghệ", progress: 0.32 },
 ];
 
 export const mockMonthlyStats = [
@@ -72,7 +72,7 @@ export const mockRewardPoints = {
 
 export const mockForYou = {
   title: "Dành cho bạn",
-  viewAllText: "Xem tất cả",
+  viewAllText: "",
   roomBooking: {
     title: "Đặt phòng họp nhóm",
     description: "Không gian yên tĩnh, trang thiết bị hiện đại",

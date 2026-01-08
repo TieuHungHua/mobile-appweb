@@ -121,10 +121,10 @@ export default function MyBookshelfScreen({
         // Load cả sách đang mượn và đã trả
         const [activeRes, returnedRes] = await Promise.all([
           borrowsAPI.getBorrows({
-            page: 1,
-            limit: 50,
-            search: searchQuery.trim() || undefined,
-            status: "active",
+          page: 1,
+          limit: 50,
+          search: searchQuery.trim() || undefined,
+          status: "active",
           }),
           borrowsAPI.getBorrows({
             page: 1,
@@ -148,10 +148,10 @@ export default function MyBookshelfScreen({
           const daysLeft = isReturned
             ? null
             : item.daysLeft !== undefined
-            ? item.daysLeft
-            : Math.ceil(
-                (new Date(dueAt) - new Date()) / (1000 * 60 * 60 * 24)
-              );
+              ? item.daysLeft
+              : Math.ceil(
+                  (new Date(dueAt) - new Date()) / (1000 * 60 * 60 * 24)
+                );
           
           return {
             id: item.id,
@@ -325,12 +325,12 @@ export default function MyBookshelfScreen({
             "Thành công",
             strings.renewSuccess || `Đã gia hạn thêm ${option.value} ngày`
           );
-          await loadBorrowed({ silent: true });
-          return res;
-        } catch (err) {
-          console.error("[MyBookshelf] renew error:", err);
-          Alert.alert("Lỗi", err.message || "Không thể gia hạn");
-        }
+      await loadBorrowed({ silent: true });
+      return res;
+    } catch (err) {
+      console.error("[MyBookshelf] renew error:", err);
+      Alert.alert("Lỗi", err.message || "Không thể gia hạn");
+    }
       },
     }));
 
@@ -450,9 +450,9 @@ export default function MyBookshelfScreen({
                 {strings.returnedDate || "Ngày trả"}: {book.returnedDate || book.expirationDate}
               </Text>
             ) : (
-              <Text style={[styles.expirationDate, { color: colors.muted }]}>
-                {strings.expirationDate || "Thời hạn"}: {book.expirationDate}
-              </Text>
+            <Text style={[styles.expirationDate, { color: colors.muted }]}>
+              {strings.expirationDate || "Thời hạn"}: {book.expirationDate}
+            </Text>
             )}
             <View
               style={[
@@ -515,18 +515,18 @@ export default function MyBookshelfScreen({
                         {strings.return || "Trả sách"}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.renewButton,
+              <TouchableOpacity
+                style={[
+                  styles.renewButton,
                         { backgroundColor: STATUS_COLORS.RENEW, flex: 1 },
-                      ]}
-                      onPress={() => handleRenew(book.id)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.renewButtonText, { color: "#fff" }]}>
-                        {strings.renew || "Gia hạn"}
-                      </Text>
-                    </TouchableOpacity>
+                ]}
+                onPress={() => handleRenew(book.id)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.renewButtonText, { color: "#fff" }]}>
+                  {strings.renew || "Gia hạn"}
+                </Text>
+              </TouchableOpacity>
                   </>
                 )}
               </View>

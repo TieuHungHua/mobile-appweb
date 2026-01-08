@@ -103,6 +103,28 @@ export const createStyles = (colors) =>
       gap: 12,
       paddingLeft: 4,
     },
+    notificationButton: {
+      position: "relative",
+      padding: 4,
+    },
+    badge: {
+      position: "absolute",
+      top: -2,
+      right: -2,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 4,
+      borderWidth: 2,
+      borderColor: "#FFFFFF",
+    },
+    badgeText: {
+      color: "#FFFFFF",
+      fontSize: 10,
+      fontWeight: "700",
+    },
     content: {
       padding: 16,
       paddingBottom: 180,
@@ -282,25 +304,32 @@ export const createStyles = (colors) =>
       minWidth: 40,
       textAlign: "right",
     },
-    coversRow: {
-      flexDirection: "row",
-      gap: 10,
+    coversScrollView: {
       marginTop: 8,
     },
+    coversRow: {
+      flexDirection: "row",
+      gap: 12,
+      paddingRight: 16,
+    },
     coverItem: {
-      width: 60,
+      width: 100,
       alignItems: "center",
       gap: 4,
     },
     coverPlaceholder: {
-      width: 60,
-      height: 80,
+      width: 100,
+      height: 140,
       borderRadius: 8,
       borderWidth: 1,
+      alignItems: "center",
+      justifyContent: "center",
     },
     coverLabel: {
       fontSize: 12,
+      fontWeight: "600",
       textAlign: "center",
+      marginTop: 4,
     },
     rewardCard: {
       borderRadius: 14,
@@ -428,6 +457,31 @@ export const createStyles = (colors) =>
     },
     roomBookingDescription: {
       fontSize: 13,
+      fontWeight: "500",
+    },
+    coverImage: {
+      width: "100%",
+      height: 120,
+      borderRadius: 8,
+      marginBottom: 8,
+    },
+    coverSubLabel: {
+      fontSize: 11,
+      fontWeight: "500",
+      marginTop: 4,
+      textAlign: "center",
+    },
+    cardSubtitle: {
+      fontSize: 12,
+      fontWeight: "500",
+      marginTop: 4,
+    },
+    loadingText: {
+      fontSize: 14,
+      fontWeight: "500",
+    },
+    emptyText: {
+      fontSize: 14,
       fontWeight: "500",
     },
   });

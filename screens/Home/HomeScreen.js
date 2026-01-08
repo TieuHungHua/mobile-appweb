@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import BottomNav from "../../components/BottomNav";
 import SettingsPanel from "../../components/SettingsPanel";
 import { createStyles } from "./Home.styles";
+import { notificationsAPI, userAPI, getStoredUserInfo } from "../../utils/api";
 import {
   mockFeatured,
   mockReading,
@@ -43,6 +44,172 @@ export default function HomeScreen({
   const [search, setSearch] = useState("");
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
   const [recentSearches, setRecentSearches] = useState(INITIAL_RECENT_SEARCHES);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Student stats state
+  const [monthlyStats, setMonthlyStats] = useState([]); // Array of 5 months
+  const [activityScore, setActivityScore] = useState(0);
+  const [popularBooks, setPopularBooks] = useState([]);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [userName, setUserName] = useState("");
+
+  // Current month stats (for display in info card)
+  const currentMonthStats = useMemo(() => {
+    if (monthlyStats.length === 0) {
+      return { borrowCount: 0, overdueCount: 0 };
+    }
+    // First item is the current month
+    return monthlyStats[0] || { borrowCount: 0, overdueCount: 0 };
+  }, [monthlyStats]);
+
+  // Calculate rank from activityScore
+  // Đồng: 0-99, Bạc: 100-299, Vàng: 300-499, Bạch Kim: 500+
+  const rankInfo = useMemo(() => {
+    const score = activityScore || 0;
+    let rank = "Đồng";
+    let rankIcon = "medal-outline";
+    let rankColor = "#cd7f32"; // Bronze color
+    let minPoints = 0;
+    let maxPoints = 99;
+    let nextRank = "Bạc";
+    let nextRankPoints = 100;
+
+    if (score >= 500) {
+      rank = "Bạch Kim";
+      rankIcon = "diamond-outline";
+      rankColor = "#e5e4e2"; // Platinum color
+      minPoints = 500;
+      maxPoints = Infinity;
+      nextRank = null; // Highest rank
+      nextRankPoints = null;
+    } else if (score >= 300) {
+      rank = "Vàng";
+      rankIcon = "trophy-outline";
+      rankColor = "#f1c40f"; // Gold color
+      minPoints = 300;
+      maxPoints = 499;
+      nextRank = "Bạch Kim";
+      nextRankPoints = 500;
+    } else if (score >= 100) {
+      rank = "Bạc";
+      rankIcon = "medal-outline";
+      rankColor = "#c0c0c0"; // Silver color
+      minPoints = 100;
+      maxPoints = 299;
+      nextRank = "Vàng";
+      nextRankPoints = 300;
+    } else {
+      rank = "Đồng";
+      rankIcon = "medal-outline";
+      rankColor = "#cd7f32"; // Bronze color
+      minPoints = 0;
+      maxPoints = 99;
+      nextRank = "Bạc";
+      nextRankPoints = 100;
+    }
+
+    // Calculate progress within current rank
+    const progress = nextRankPoints
+      ? (score - minPoints) / (nextRankPoints - minPoints)
+      : 1; // 100% if at highest rank
+    const progressPercent = Math.min(Math.max(progress, 0), 1);
+
+    // Points needed for next rank
+    const pointsNeeded = nextRankPoints ? nextRankPoints - score : 0;
+
+    return {
+      rank,
+      rankIcon,
+      rankColor,
+      progress: progressPercent,
+      nextRank,
+      nextRankPoints,
+      pointsNeeded,
+    };
+  }, [activityScore]);
+
+  // Load unread notifications count
+  const loadUnreadCount = useCallback(async () => {
+    try {
+      const res = await notificationsAPI.getUnreadCount();
+      const count = res.count || res.data?.count || 0;
+      setUnreadCount(count);
+    } catch (err) {
+      console.error("[Home] Load unread count error:", err);
+      // Silently fail, don't show error to user
+      setUnreadCount(0); // Set to 0 on error
+    }
+  }, []);
+
+  // Load student stats
+  const loadStudentStats = useCallback(async () => {
+    try {
+      setStatsLoading(true);
+      const res = await userAPI.getStudentStats();
+
+      // Update monthly stats (array of 5 months)
+      if (res.monthlyStats && Array.isArray(res.monthlyStats)) {
+        setMonthlyStats(res.monthlyStats);
+      } else {
+        setMonthlyStats([]);
+      }
+
+      // Update activity score
+      if (res.activityScore !== undefined) {
+        setActivityScore(res.activityScore || 0);
+      }
+
+      // Update popular books
+      if (res.popularBooks && Array.isArray(res.popularBooks)) {
+        setPopularBooks(res.popularBooks);
+      }
+    } catch (err) {
+      console.error("[Home] Load student stats error:", err);
+      // Silently fail, use default values
+      setMonthlyStats([]);
+      setActivityScore(0);
+      setPopularBooks([]);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  // Load user name
+  const loadUserName = useCallback(async () => {
+    try {
+      const userInfo = await getStoredUserInfo();
+      if (userInfo) {
+        const name = userInfo.displayName || userInfo.name || userInfo.fullName || userInfo.username || "";
+        setUserName(name);
+      }
+    } catch (err) {
+      console.error("[Home] Load user name error:", err);
+    }
+  }, []);
+
+  // Load count and stats when screen mounts
+  useEffect(() => {
+    loadUnreadCount();
+    loadStudentStats();
+    loadUserName();
+
+    // Refresh count when navigating back to home
+    const interval = setInterval(() => {
+      loadUnreadCount();
+      loadStudentStats();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [loadUnreadCount, loadStudentStats, loadUserName]);
+
+  // Listen for navigation events to refresh count
+  useEffect(() => {
+    if (onNavigate) {
+      const originalNavigate = onNavigate;
+      // Wrap onNavigate to refresh count when navigating to notifications
+      // This will be handled by App.js when screen changes
+    }
+  }, [onNavigate]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -82,14 +249,25 @@ export default function HomeScreen({
         </View>
         <View style={styles.topRight}>
           <TouchableOpacity
-            onPress={() => onNavigate?.("notifications")}
+            onPress={() => {
+              loadUnreadCount(); // Refresh count before navigating
+              onNavigate?.("notifications");
+            }}
             activeOpacity={0.7}
+            style={styles.notificationButton}
           >
             <Ionicons
               name="notifications-outline"
               size={22}
               color={colors.headerText}
             />
+            {unreadCount > 0 && (
+              <View style={[styles.badge, { backgroundColor: "#e74c3c" }]}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onNavigate?.("settings")}
@@ -155,7 +333,7 @@ export default function HomeScreen({
             {strings.yourInfo || "Thông tin của bạn"}
           </Text>
           <Text style={[styles.cardText, { color: colors.text }]}>
-            "{GREETING}"
+            {userName ? `Xin chào, ${userName} 👋👋` : "Xin chào"}
           </Text>
           <View style={styles.statsRow}>
             <View
@@ -169,7 +347,7 @@ export default function HomeScreen({
             >
               <Ionicons name="book-outline" size={18} color={colors.buttonBg} />
               <Text style={[styles.statNumber, { color: colors.text }]}>
-                {STAT_INITIAL.borrowed}
+                {statsLoading ? "..." : currentMonthStats.borrowCount}
               </Text>
               <Text style={[styles.statLabel, { color: colors.muted }]}>
                 {strings.borrowed || "Đã mượn"}
@@ -186,7 +364,7 @@ export default function HomeScreen({
             >
               <Ionicons name="time-outline" size={18} color="#e67e22" />
               <Text style={[styles.statNumber, { color: colors.text }]}>
-                {STAT_INITIAL.overdue}
+                {statsLoading ? "..." : currentMonthStats.overdueCount}
               </Text>
               <Text style={[styles.statLabel, { color: colors.muted }]}>
                 {strings.overdue || "Quá hạn"}
@@ -203,55 +381,56 @@ export default function HomeScreen({
           <View style={styles.rewardContent}>
             <View style={styles.rewardLeft}>
               <Text style={[styles.rewardPoints, { color: "#FFFFFF" }]}>
-                {mockRewardPoints.currentPoints.toLocaleString()} điểm
+                {statsLoading ? "..." : activityScore.toLocaleString()} điểm
               </Text>
             </View>
             <View style={styles.rewardRight}>
               <View style={styles.rewardRankRow}>
                 <Ionicons
-                  name={mockRewardPoints.rankIcon}
+                  name={rankInfo.rankIcon}
                   size={20}
-                  color="#f1c40f"
+                  color={rankInfo.rankColor}
                 />
-                <Text style={[styles.rewardRank, { color: "#f1c40f" }]}>
-                  {mockRewardPoints.currentRank}
+                <Text style={[styles.rewardRank, { color: rankInfo.rankColor }]}>
+                  Hạng {rankInfo.rank}
                 </Text>
               </View>
-              <Text style={[styles.rewardRanking, { color: "#FFFFFF" }]}>
-                {mockRewardPoints.ranking}
-              </Text>
             </View>
           </View>
-          <View style={styles.rewardProgressSection}>
-            <View style={styles.rewardProgressRow}>
-              <Text style={[styles.rewardProgressLabel, { color: "#FFFFFF" }]}>
-                {strings.rankProgress || "Tiến độ thăng hạng"}
-              </Text>
-              <View style={styles.rewardProgressBarContainer}>
-                <View
-                  style={[
-                    styles.rewardProgressBar,
-                    {
-                      width: `${mockRewardPoints.progress * 100}%`,
-                      backgroundColor: "#f1c40f",
-                    },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.rewardProgressBarRemaining,
-                    {
-                      width: `${(1 - mockRewardPoints.progress) * 100}%`,
-                      backgroundColor: "rgba(255, 255, 255, 0.3)",
-                    },
-                  ]}
-                />
+          {rankInfo.nextRank && (
+            <View style={styles.rewardProgressSection}>
+              <View style={styles.rewardProgressRow}>
+                <Text style={[styles.rewardProgressLabel, { color: "#FFFFFF" }]}>
+                  {strings.rankProgress || "Tiến độ thăng hạng"}
+                </Text>
+                <View style={styles.rewardProgressBarContainer}>
+                  <View
+                    style={[
+                      styles.rewardProgressBar,
+                      {
+                        width: `${rankInfo.progress * 100}%`,
+                        backgroundColor: rankInfo.rankColor,
+                      },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.rewardProgressBarRemaining,
+                      {
+                        width: `${(1 - rankInfo.progress) * 100}%`,
+                        backgroundColor: "rgba(255, 255, 255, 0.3)",
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.rewardNextPoints, { color: "#FFFFFF" }]}>
+                  {rankInfo.pointsNeeded > 0
+                    ? `${rankInfo.pointsNeeded} điểm nữa để lên ${rankInfo.nextRank}`
+                    : `Đã đạt ${rankInfo.rank}`}
+                </Text>
               </View>
-              <Text style={[styles.rewardNextPoints, { color: "#FFFFFF" }]}>
-                {mockRewardPoints.nextRankPoints} điểm nữa
-              </Text>
             </View>
-          </View>
+          )}
         </View>
 
         <View style={styles.forYouSection}>
@@ -292,10 +471,11 @@ export default function HomeScreen({
           </TouchableOpacity>
         </View>
 
+        {/* Monthly Stats Chart */}
         <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
           <View style={styles.cardHeaderRow}>
             <Text style={[styles.cardTitle, { color: colors.text }]}>
-              {strings.monthly || "Thống kê theo tháng"}
+              {strings.monthly || "Thống kê 5 tháng gần nhất"}
             </Text>
             <View style={styles.legendRow}>
               <View
@@ -312,48 +492,81 @@ export default function HomeScreen({
               </Text>
             </View>
           </View>
-          <View style={styles.chartRow}>
-            {mockMonthlyStats.map((m) => {
-              const borrowHeight =
-                (m.borrowed / CHART_CONFIG.MAX_VALUE) *
-                  CHART_CONFIG.MAX_BAR_HEIGHT +
-                CHART_CONFIG.MIN_BAR_HEIGHT;
-              const returnHeight =
-                (m.returned / CHART_CONFIG.MAX_VALUE) *
-                  CHART_CONFIG.MAX_BAR_HEIGHT +
-                CHART_CONFIG.MIN_BAR_HEIGHT;
-              return (
-                <View key={m.month} style={styles.chartCol}>
-                  <View style={styles.barGroup}>
-                    <View
-                      style={[
-                        styles.bar,
-                        {
-                          height: borrowHeight,
-                          backgroundColor: colors.buttonBg,
-                        },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.bar,
-                        { height: returnHeight, backgroundColor: "#f1c40f" },
-                      ]}
-                    />
+          {statsLoading ? (
+            <View style={{ padding: 20, alignItems: "center" }}>
+              <Text style={[styles.loadingText, { color: colors.muted }]}>
+                Đang tải...
+              </Text>
+            </View>
+          ) : monthlyStats.length === 0 ? (
+            <View style={{ padding: 20, alignItems: "center" }}>
+              <Text style={[styles.emptyText, { color: colors.muted }]}>
+                Chưa có dữ liệu thống kê
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.chartRow}>
+              {monthlyStats.map((m, idx) => {
+                // Calculate max value for scaling (chỉ tính borrowCount và returnCount)
+                const maxValue = Math.max(
+                  ...monthlyStats.map(
+                    (stat) =>
+                      Math.max(
+                        stat.borrowCount || 0,
+                        stat.returnCount || 0
+                      )
+                  )
+                );
+
+                const borrowHeight =
+                  maxValue > 0
+                    ? ((m.borrowCount || 0) / maxValue) *
+                    CHART_CONFIG.MAX_BAR_HEIGHT +
+                    CHART_CONFIG.MIN_BAR_HEIGHT
+                    : CHART_CONFIG.MIN_BAR_HEIGHT;
+                const returnHeight =
+                  maxValue > 0
+                    ? ((m.returnCount || 0) / maxValue) *
+                    CHART_CONFIG.MAX_BAR_HEIGHT +
+                    CHART_CONFIG.MIN_BAR_HEIGHT
+                    : CHART_CONFIG.MIN_BAR_HEIGHT;
+
+                // Format month label: "T12" or "12"
+                const monthLabel = `T${m.month}`;
+
+                return (
+                  <View key={`${m.month}-${m.year}-${idx}`} style={styles.chartCol}>
+                    <View style={styles.barGroup}>
+                      <View
+                        style={[
+                          styles.bar,
+                          {
+                            height: borrowHeight,
+                            backgroundColor: colors.buttonBg,
+                          },
+                        ]}
+                      />
+                      <View
+                        style={[
+                          styles.bar,
+                          { height: returnHeight, backgroundColor: "#f1c40f" },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.chartLabel, { color: colors.text }]}>
+                      {monthLabel}
+                    </Text>
                   </View>
-                  <Text style={[styles.chartLabel, { color: colors.text }]}>
-                    {m.month}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         {/* Categories */}
         <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>
-            {strings.categories || "Thể loại sách"}
+            {strings.categories || "Thể loại sách nổi bật"}
           </Text>
           <View style={styles.chipsRow}>
             {CATEGORIES.map((item) => (
@@ -428,27 +641,90 @@ export default function HomeScreen({
           <Text style={[styles.cardTitle, { color: colors.text }]}>
             {strings.featured || "Sách nổi bật"}
           </Text>
-          <View style={styles.coversRow}>
-            {mockFeatured.map((b, idx) => (
-              <View key={idx} style={styles.coverItem}>
-                <View
-                  style={[
-                    styles.coverPlaceholder,
-                    {
-                      backgroundColor: colors.inputBg,
-                      borderColor: colors.inputBorder,
-                    },
-                  ]}
-                />
-                <Text
-                  style={[styles.coverLabel, { color: colors.text }]}
-                  numberOfLines={1}
+          {statsLoading ? (
+            <View style={{ padding: 20, alignItems: "center" }}>
+              <Text style={[styles.loadingText, { color: colors.muted }]}>
+                Đang tải...
+              </Text>
+            </View>
+          ) : popularBooks.length === 0 ? (
+            <View style={{ padding: 20, alignItems: "center" }}>
+              <Text style={[styles.emptyText, { color: colors.muted }]}>
+                Chưa có sách nổi bật
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.coversRow}
+              style={styles.coversScrollView}
+            >
+              {popularBooks.map((book) => (
+                <TouchableOpacity
+                  key={book.id}
+                  style={styles.coverItem}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    onNavigate?.("bookDetail", { book });
+                  }}
                 >
-                  {b.title}
-                </Text>
-              </View>
-            ))}
-          </View>
+                  {book.coverImage ? (
+                    <Image
+                      source={{ uri: book.coverImage }}
+                      style={[
+                        styles.coverImage,
+                        {
+                          backgroundColor: colors.inputBg,
+                          borderColor: colors.inputBorder,
+                          borderWidth: 1,
+                        },
+                      ]}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.coverPlaceholder,
+                        {
+                          backgroundColor: colors.inputBg,
+                          borderColor: colors.inputBorder,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="book-outline"
+                        size={24}
+                        color={colors.muted}
+                      />
+                    </View>
+                  )}
+                  <Text
+                    style={[styles.coverLabel, { color: colors.text }]}
+                    numberOfLines={2}
+                  >
+                    {book.title}
+                  </Text>
+                  {book.author && (
+                    <Text
+                      style={[styles.coverSubLabel, { color: colors.muted }]}
+                      numberOfLines={1}
+                    >
+                      {book.author}
+                    </Text>
+                  )}
+                  {book.borrowCount !== undefined && (
+                    <Text
+                      style={[styles.coverSubLabel, { color: colors.muted }]}
+                      numberOfLines={1}
+                    >
+                      {book.borrowCount} lượt mượn
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
         </View>
       </ScrollView>
 
