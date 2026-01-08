@@ -15,6 +15,7 @@ import {
   Image,
   Alert,
   Modal,
+  ScrollView,
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,6 +23,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import BottomNav from "../../components/BottomNav";
 import { createStyles } from "./Books.styles";
 import { booksAPI, borrowsAPI } from "../../utils/api";
+import { BOOK_CATEGORIES } from "./Books.categories";
 
 export default function BooksScreen({
   theme,
@@ -60,6 +62,11 @@ export default function BooksScreen({
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
 
+  // Filter states
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [expandedCategories, setExpandedCategories] = useState({});
+
   useEffect(() => {
     if (
       Platform.OS === "android" &&
@@ -93,6 +100,12 @@ export default function BooksScreen({
           params.search = search.trim();
         }
 
+        // Add category filter
+        if (selectedCategories.length > 0) {
+          // Send first selected category (backend may support multiple later)
+          params.category = selectedCategories[0];
+        }
+
         // Add available filter - backend sẽ filter sách có sẵn và không bao gồm sách đã mượn
         if (tab === "available") {
           params.status = "available";
@@ -119,12 +132,12 @@ export default function BooksScreen({
             // Đảm bảo isFavorite là boolean
             const isFavorite = Boolean(book.isFavorite);
 
-              return {
-                ...book,
+            return {
+              ...book,
               isBorrowed, // Đảm bảo là boolean
               borrowDue,  // Format date hoặc null
               isFavorite, // Đảm bảo là boolean
-              };
+            };
           });
         }
 
@@ -152,7 +165,7 @@ export default function BooksScreen({
         setRefreshing(false);
       }
     },
-    [search, tab, limit]
+    [search, tab, limit, selectedCategories]
   );
 
   // Load more books when scrolling to end
@@ -177,7 +190,7 @@ export default function BooksScreen({
     setError(null);
     loadBooks(1, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, tab]); // Reload when search or tab changes
+  }, [search, tab, selectedCategories]); // Reload when search, tab, or categories change
 
   // Filter books by tab (if needed for client-side filtering)
   const filteredBooks = useMemo(() => {
@@ -266,10 +279,10 @@ export default function BooksScreen({
       console.log("[BooksScreen] Borrow success:", result);
 
       // Update books list immediately
-      const formattedDueDate = result.dueAt || result.due_at 
+      const formattedDueDate = result.dueAt || result.due_at
         ? formatDateForDisplay(result.dueAt || result.due_at)
         : null;
-      
+
       setBooks((prevBooks) => {
         return prevBooks.map((b) => {
           if (b.id === selectedBook.id) {
@@ -451,10 +464,34 @@ export default function BooksScreen({
               backgroundColor: colors.cardBg,
               borderColor: colors.inputBorder,
             },
+            selectedCategories.length > 0 && {
+              backgroundColor: colors.buttonBg,
+            },
           ]}
           activeOpacity={0.7}
+          onPress={() => setShowFilterModal(true)}
         >
-          <Ionicons name="filter-outline" size={20} color={colors.buttonBg} />
+          <Ionicons
+            name={selectedCategories.length > 0 ? "filter" : "filter-outline"}
+            size={20}
+            color={
+              selectedCategories.length > 0
+                ? "#FFFFFF"
+                : colors.buttonBg
+            }
+          />
+          {selectedCategories.length > 0 && (
+            <View
+              style={[
+                styles.filterBadge,
+                { backgroundColor: "#FFFFFF" },
+              ]}
+            >
+              <Text style={styles.filterBadgeText}>
+                {selectedCategories.length}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -763,58 +800,58 @@ export default function BooksScreen({
 
                           return (
                             <>
-                          <View
-                            style={[
-                              styles.statusBadge,
-                              {
+                              <View
+                                style={[
+                                  styles.statusBadge,
+                                  {
                                     backgroundColor: isBorrowed
                                       ? "#f39c12" + "20" // Màu cam nhạt cho "Đã mượn"
                                       : isAvailable
                                         ? "#2ecc71" + "20" // Màu xanh nhạt cho "Có sẵn"
                                         : "#e74c3c" + "20", // Màu đỏ nhạt cho "Không có sẵn"
-                              },
-                            ]}
-                          >
-                            <View
-                              style={[
-                                styles.statusDot,
-                                {
+                                  },
+                                ]}
+                              >
+                                <View
+                                  style={[
+                                    styles.statusDot,
+                                    {
                                       backgroundColor: isBorrowed
                                         ? "#f39c12" // Màu cam cho "Đã mượn"
                                         : isAvailable
                                           ? "#2ecc71" // Màu xanh cho "Có sẵn"
                                           : "#e74c3c", // Màu đỏ cho "Không có sẵn"
-                                },
-                              ]}
-                            />
-                            <Text
-                              style={[
-                                styles.statusText,
-                                {
+                                    },
+                                  ]}
+                                />
+                                <Text
+                                  style={[
+                                    styles.statusText,
+                                    {
                                       color: isBorrowed
                                         ? "#f39c12" // Màu cam cho "Đã mượn"
                                         : isAvailable
                                           ? "#2ecc71" // Màu xanh cho "Có sẵn"
                                           : "#e74c3c", // Màu đỏ cho "Không có sẵn"
-                                },
-                              ]}
-                            >
+                                    },
+                                  ]}
+                                >
                                   {isBorrowed
                                     ? strings.borrowed || "Đã mượn"
                                     : isAvailable
-                                ? strings.available || "Có sẵn"
-                                : strings.notAvailable || "Không có sẵn"}
-                            </Text>
-                          </View>
-                        {/* Hiển thị ngày hết hạn nếu đã mượn */}
+                                      ? strings.available || "Có sẵn"
+                                      : strings.notAvailable || "Không có sẵn"}
+                                </Text>
+                              </View>
+                              {/* Hiển thị ngày hết hạn nếu đã mượn */}
                               {isBorrowed && b.borrowDue && (
-                          <View style={styles.dueDateContainer}>
-                            <Ionicons name="calendar-outline" size={12} color={colors.muted} />
-                            <Text style={[styles.dueDate, { color: colors.muted }]}>
-                              {strings.due || "Hạn"}: {b.borrowDue}
-                            </Text>
-                          </View>
-                        )}
+                                <View style={styles.dueDateContainer}>
+                                  <Ionicons name="calendar-outline" size={12} color={colors.muted} />
+                                  <Text style={[styles.dueDate, { color: colors.muted }]}>
+                                    {strings.due || "Hạn"}: {b.borrowDue}
+                                  </Text>
+                                </View>
+                              )}
                             </>
                           );
                         })()}
@@ -1098,6 +1135,219 @@ export default function BooksScreen({
           </TouchableOpacity>
         </Modal>
       )}
+
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilterModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.filterModalOverlay}>
+          <View
+            style={[
+              styles.filterModalContent,
+              { backgroundColor: colors.cardBg },
+            ]}
+          >
+            <View style={styles.filterModalHeader}>
+              <Text
+                style={[styles.filterModalTitle, { color: colors.text }]}
+              >
+                Lọc theo danh mục
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowFilterModal(false)}
+                style={styles.filterModalCloseBtn}
+              >
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.filterModalBody}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                style={styles.filterScrollView}
+              >
+                {BOOK_CATEGORIES.map((category) => {
+                  const isExpanded = expandedCategories[category.id];
+                  const hasSelectedSubcategory = category.subcategories.some(
+                    (sub) => selectedCategories.includes(sub.id)
+                  );
+
+                  return (
+                    <View key={category.id} style={styles.filterCategoryGroup}>
+                      <TouchableOpacity
+                        style={[
+                          styles.filterCategoryHeader,
+                          {
+                            backgroundColor: colors.inputBg,
+                            borderColor: colors.inputBorder,
+                          },
+                        ]}
+                        onPress={() => {
+                          setExpandedCategories((prev) => ({
+                            ...prev,
+                            [category.id]: !prev[category.id],
+                          }));
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[styles.filterCategoryTitle, { color: colors.text }]}
+                        >
+                          {category.label}
+                        </Text>
+                        <View style={styles.filterCategoryHeaderRight}>
+                          {hasSelectedSubcategory && (
+                            <View
+                              style={[
+                                styles.filterCategoryBadge,
+                                { backgroundColor: colors.buttonBg },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.filterCategoryBadgeText,
+                                  { color: "#FFFFFF" },
+                                ]}
+                              >
+                                {
+                                  category.subcategories.filter((sub) =>
+                                    selectedCategories.includes(sub.id)
+                                  ).length
+                                }
+                              </Text>
+                            </View>
+                          )}
+                          <Ionicons
+                            name={
+                              isExpanded
+                                ? "chevron-down"
+                                : "chevron-forward"
+                            }
+                            size={20}
+                            color={colors.muted}
+                          />
+                        </View>
+                      </TouchableOpacity>
+
+                      {isExpanded && (
+                        <View style={styles.filterSubcategories}>
+                          {category.subcategories.map((subcategory) => {
+                            const isSelected = selectedCategories.includes(
+                              subcategory.id
+                            );
+                            return (
+                              <TouchableOpacity
+                                key={subcategory.id}
+                                style={[
+                                  styles.filterSubcategoryItem,
+                                  {
+                                    backgroundColor: isSelected
+                                      ? colors.buttonBg
+                                      : colors.inputBg,
+                                    borderColor: isSelected
+                                      ? colors.buttonBg
+                                      : colors.inputBorder,
+                                  },
+                                ]}
+                                onPress={() => {
+                                  setSelectedCategories((prev) => {
+                                    if (prev.includes(subcategory.id)) {
+                                      return prev.filter(
+                                        (id) => id !== subcategory.id
+                                      );
+                                    } else {
+                                      // Only allow one category at a time for now
+                                      return [subcategory.id];
+                                    }
+                                  });
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <Text
+                                  style={[
+                                    styles.filterSubcategoryText,
+                                    {
+                                      color: isSelected
+                                        ? "#FFFFFF"
+                                        : colors.text,
+                                    },
+                                  ]}
+                                >
+                                  {subcategory.label}
+                                </Text>
+                                {isSelected && (
+                                  <Ionicons
+                                    name="checkmark"
+                                    size={18}
+                                    color="#FFFFFF"
+                                  />
+                                )}
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            <View style={styles.filterModalFooter}>
+              <TouchableOpacity
+                style={[
+                  styles.filterModalBtn,
+                  styles.filterModalBtnSecondary,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.inputBorder,
+                  },
+                ]}
+                onPress={() => {
+                  setSelectedCategories([]);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.filterModalBtnText,
+                    { color: colors.text },
+                  ]}
+                >
+                  Xóa bộ lọc
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.filterModalBtn,
+                  styles.filterModalBtnPrimary,
+                  { backgroundColor: colors.buttonBg },
+                ]}
+                onPress={() => {
+                  setShowFilterModal(false);
+                  // Reload books with new filter
+                  setCurrentPage(1);
+                  setHasMore(true);
+                  loadBooks(1, false);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.filterModalBtnText,
+                    { color: colors.buttonText },
+                  ]}
+                >
+                  Áp dụng ({selectedCategories.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

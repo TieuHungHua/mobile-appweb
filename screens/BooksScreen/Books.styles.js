@@ -51,6 +51,25 @@ export const createStyles = (colors) =>
       shadowRadius: 4,
       shadowOffset: { width: 0, height: 2 },
       elevation: 2,
+      position: "relative",
+    },
+    filterBadge: {
+      position: "absolute",
+      top: -4,
+      right: -4,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 4,
+      borderWidth: 2,
+      borderColor: "#FFFFFF",
+    },
+    filterBadgeText: {
+      color: "#000000",
+      fontSize: 10,
+      fontWeight: "700",
     },
     tabs: {
       flexDirection: "row",
@@ -463,5 +482,120 @@ export const createStyles = (colors) =>
     termsLink: {
       fontWeight: "700",
       textDecorationLine: "underline",
+    },
+    // Filter Modal Styles
+    filterModalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      justifyContent: "flex-end",
+    },
+    filterModalContent: {
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: "90%",
+      paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    },
+    filterModalHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: "rgba(0, 0, 0, 0.1)",
+    },
+    filterModalTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+    },
+    filterModalCloseBtn: {
+      padding: 4,
+    },
+    filterModalBody: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+    },
+    filterScrollView: {
+      flex: 1,
+    },
+    filterCategoryGroup: {
+      marginBottom: 12,
+    },
+    filterCategoryHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+    filterCategoryHeaderRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    filterCategoryTitle: {
+      fontSize: 15,
+      fontWeight: "600",
+      flex: 1,
+    },
+    filterCategoryBadge: {
+      minWidth: 24,
+      height: 24,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 6,
+    },
+    filterCategoryBadgeText: {
+      fontSize: 11,
+      fontWeight: "700",
+    },
+    filterSubcategories: {
+      marginTop: 8,
+      gap: 8,
+      paddingLeft: 8,
+    },
+    filterSubcategoryItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+    },
+    filterSubcategoryText: {
+      fontSize: 14,
+      fontWeight: "500",
+      flex: 1,
+    },
+    filterModalFooter: {
+      flexDirection: "row",
+      gap: 12,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      borderTopWidth: 1,
+      borderTopColor: "rgba(0, 0, 0, 0.1)",
+    },
+    filterModalBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+    },
+    filterModalBtnSecondary: {
+      // Styles already applied via backgroundColor and borderColor
+    },
+    filterModalBtnPrimary: {
+      // Styles already applied via backgroundColor
+    },
+    filterModalBtnText: {
+      fontSize: 15,
+      fontWeight: "600",
     },
   });
