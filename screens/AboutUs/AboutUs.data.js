@@ -69,9 +69,6 @@ export const contactInfo = [
   },
 ];
 
-/**
- * Get icon name based on section index
- */
 export const getSectionIcon = (index) => {
   const icons = [
     "information-circle",

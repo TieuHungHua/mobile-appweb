@@ -36,7 +36,7 @@ export default function BottomNav({ activeKey, onChange, colors, strings }) {
         styles.container,
         {
           backgroundColor: "#FFFFFF",
-          borderTopColor: colors.buttonBg + "40", // Light blue border
+          borderTopColor: colors.buttonBg + "40",
         },
       ]}
     >
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 8,
     paddingTop: 8,
-    paddingBottom: Platform.OS === "ios" ? 28 : 12, // Extra padding for iOS safe area
+    paddingBottom: Platform.OS === "ios" ? 28 : 12,
     borderTopWidth: 1,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,

@@ -179,7 +179,12 @@ export default function HomeScreen({
     try {
       const userInfo = await getStoredUserInfo();
       if (userInfo) {
-        const name = userInfo.displayName || userInfo.name || userInfo.fullName || userInfo.username || "";
+        const name =
+          userInfo.displayName ||
+          userInfo.name ||
+          userInfo.fullName ||
+          userInfo.username ||
+          "";
         setUserName(name);
       }
     } catch (err) {
@@ -210,6 +215,27 @@ export default function HomeScreen({
       // This will be handled by App.js when screen changes
     }
   }, [onNavigate]);
+
+  const handleSubmitSearch = useCallback(() => {
+    const query = search?.trim();
+    if (!query) {
+      setShowSearchOverlay(false);
+      Keyboard.dismiss();
+      return;
+    }
+
+    // Update recent searches
+    setRecentSearches((prev) =>
+      [query, ...prev.filter((p) => p !== query)].slice(0, 8)
+    );
+
+    // Close UI immediately (don't update search state to avoid extra re-renders)
+    setShowSearchOverlay(false);
+    Keyboard.dismiss();
+
+    // Navigate with search query
+    onNavigate?.("books", { searchQuery: query });
+  }, [onNavigate, search]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -243,7 +269,7 @@ export default function HomeScreen({
               placeholder={strings.search || "Search"}
               placeholderTextColor={colors.placeholder}
               returnKeyType="search"
-              onSubmitEditing={() => Keyboard.dismiss()}
+              onSubmitEditing={handleSubmitSearch}
             />
           </View>
         </View>
@@ -391,7 +417,9 @@ export default function HomeScreen({
                   size={20}
                   color={rankInfo.rankColor}
                 />
-                <Text style={[styles.rewardRank, { color: rankInfo.rankColor }]}>
+                <Text
+                  style={[styles.rewardRank, { color: rankInfo.rankColor }]}
+                >
                   Hạng {rankInfo.rank}
                 </Text>
               </View>
@@ -400,7 +428,9 @@ export default function HomeScreen({
           {rankInfo.nextRank && (
             <View style={styles.rewardProgressSection}>
               <View style={styles.rewardProgressRow}>
-                <Text style={[styles.rewardProgressLabel, { color: "#FFFFFF" }]}>
+                <Text
+                  style={[styles.rewardProgressLabel, { color: "#FFFFFF" }]}
+                >
                   {strings.rankProgress || "Tiến độ thăng hạng"}
                 </Text>
                 <View style={styles.rewardProgressBarContainer}>
@@ -509,33 +539,32 @@ export default function HomeScreen({
               {monthlyStats.map((m, idx) => {
                 // Calculate max value for scaling (chỉ tính borrowCount và returnCount)
                 const maxValue = Math.max(
-                  ...monthlyStats.map(
-                    (stat) =>
-                      Math.max(
-                        stat.borrowCount || 0,
-                        stat.returnCount || 0
-                      )
+                  ...monthlyStats.map((stat) =>
+                    Math.max(stat.borrowCount || 0, stat.returnCount || 0)
                   )
                 );
 
                 const borrowHeight =
                   maxValue > 0
                     ? ((m.borrowCount || 0) / maxValue) *
-                    CHART_CONFIG.MAX_BAR_HEIGHT +
-                    CHART_CONFIG.MIN_BAR_HEIGHT
+                        CHART_CONFIG.MAX_BAR_HEIGHT +
+                      CHART_CONFIG.MIN_BAR_HEIGHT
                     : CHART_CONFIG.MIN_BAR_HEIGHT;
                 const returnHeight =
                   maxValue > 0
                     ? ((m.returnCount || 0) / maxValue) *
-                    CHART_CONFIG.MAX_BAR_HEIGHT +
-                    CHART_CONFIG.MIN_BAR_HEIGHT
+                        CHART_CONFIG.MAX_BAR_HEIGHT +
+                      CHART_CONFIG.MIN_BAR_HEIGHT
                     : CHART_CONFIG.MIN_BAR_HEIGHT;
 
                 // Format month label: "T12" or "12"
                 const monthLabel = `T${m.month}`;
 
                 return (
-                  <View key={`${m.month}-${m.year}-${idx}`} style={styles.chartCol}>
+                  <View
+                    key={`${m.month}-${m.year}-${idx}`}
+                    style={styles.chartCol}
+                  >
                     <View style={styles.barGroup}>
                       <View
                         style={[
@@ -787,17 +816,7 @@ export default function HomeScreen({
                   placeholder={strings.search || "Search"}
                   placeholderTextColor={colors.placeholder}
                   returnKeyType="search"
-                  onSubmitEditing={() => {
-                    if (search?.trim()) {
-                      setRecentSearches((prev) =>
-                        [
-                          search.trim(),
-                          ...prev.filter((p) => p !== search.trim()),
-                        ].slice(0, 8)
-                      );
-                    }
-                    Keyboard.dismiss();
-                  }}
+                  onSubmitEditing={handleSubmitSearch}
                 />
                 {search?.length === 0 && (
                   <Ionicons name="search" size={18} color={colors.muted} />
@@ -836,9 +855,10 @@ export default function HomeScreen({
                   key={item}
                   style={[styles.dropdownItem, { paddingHorizontal: 8 }]}
                   onPress={() => {
-                    setSearch(item);
                     setShowSearchOverlay(false);
                     Keyboard.dismiss();
+                    // Navigate immediately without updating state
+                    onNavigate?.("books", { searchQuery: item });
                   }}
                 >
                   <Ionicons

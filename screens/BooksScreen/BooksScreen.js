@@ -135,7 +135,7 @@ export default function BooksScreen({
             return {
               ...book,
               isBorrowed, // Đảm bảo là boolean
-              borrowDue,  // Format date hoặc null
+              borrowDue, // Format date hoặc null
               isFavorite, // Đảm bảo là boolean
             };
           });
@@ -192,14 +192,15 @@ export default function BooksScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, tab, selectedCategories]); // Reload when search, tab, or categories change
 
-  // Filter books by tab (if needed for client-side filtering)
+  // Memoize filteredBooks to prevent unnecessary re-renders
   const filteredBooks = useMemo(() => {
     if (tab === "available") {
       // Chỉ lấy sách có sẵn VÀ user chưa mượn
       // Backend đã filter, nhưng vẫn check client-side để đảm bảo
       return books.filter((b) => {
         const isBorrowed = Boolean(b.isBorrowed);
-        const isAvailable = b.status === "có sẵn" || (b.availableCopies && b.availableCopies > 0);
+        const isAvailable =
+          b.status === "có sẵn" || (b.availableCopies && b.availableCopies > 0);
         return isAvailable && !isBorrowed;
       });
     }
@@ -258,7 +259,10 @@ export default function BooksScreen({
     }
 
     if (selectedDueDate > maxDate) {
-      Alert.alert("Lỗi", "Ngày hết hạn không được quá 1 tháng (30 ngày) kể từ ngày mượn");
+      Alert.alert(
+        "Lỗi",
+        "Ngày hết hạn không được quá 1 tháng (30 ngày) kể từ ngày mượn"
+      );
       return;
     }
 
@@ -279,9 +283,10 @@ export default function BooksScreen({
       console.log("[BooksScreen] Borrow success:", result);
 
       // Update books list immediately
-      const formattedDueDate = result.dueAt || result.due_at
-        ? formatDateForDisplay(result.dueAt || result.due_at)
-        : null;
+      const formattedDueDate =
+        result.dueAt || result.due_at
+          ? formatDateForDisplay(result.dueAt || result.due_at)
+          : null;
 
       setBooks((prevBooks) => {
         return prevBooks.map((b) => {
@@ -308,7 +313,11 @@ export default function BooksScreen({
       // Show success message
       Alert.alert(
         "Thành công",
-        `Đã mượn sách "${selectedBook.title}" thành công!\nHạn trả: ${formatDateForDisplay(result.dueAt)}\nBạn nhận được 10 điểm thưởng.`,
+        `Đã mượn sách "${
+          selectedBook.title
+        }" thành công!\nHạn trả: ${formatDateForDisplay(
+          result.dueAt
+        )}\nBạn nhận được 10 điểm thưởng.`,
         [{ text: "OK" }]
       );
     } catch (error) {
@@ -427,9 +436,7 @@ export default function BooksScreen({
   }, []);
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={theme === "dark" ? "light" : "dark"} />
 
       <View style={[styles.topBar, { backgroundColor: colors.headerBg }]}>
@@ -474,19 +481,10 @@ export default function BooksScreen({
           <Ionicons
             name={selectedCategories.length > 0 ? "filter" : "filter-outline"}
             size={20}
-            color={
-              selectedCategories.length > 0
-                ? "#FFFFFF"
-                : colors.buttonBg
-            }
+            color={selectedCategories.length > 0 ? "#FFFFFF" : colors.buttonBg}
           />
           {selectedCategories.length > 0 && (
-            <View
-              style={[
-                styles.filterBadge,
-                { backgroundColor: "#FFFFFF" },
-              ]}
-            >
+            <View style={[styles.filterBadge, { backgroundColor: "#FFFFFF" }]}>
               <Text style={styles.filterBadgeText}>
                 {selectedCategories.length}
               </Text>
@@ -544,19 +542,22 @@ export default function BooksScreen({
               { backgroundColor: colors.inputBg },
             ]}
           >
-            <Ionicons name="alert-circle-outline" size={64} color={colors.muted} />
+            <Ionicons
+              name="alert-circle-outline"
+              size={64}
+              color={colors.muted}
+            />
           </View>
           <Text style={[styles.emptyText, { color: colors.muted }]}>
             {error}
           </Text>
           <TouchableOpacity
-            style={[
-              styles.retryButton,
-              { backgroundColor: colors.buttonBg },
-            ]}
+            style={[styles.retryButton, { backgroundColor: colors.buttonBg }]}
             onPress={() => loadBooks(1, false)}
           >
-            <Text style={[styles.retryButtonText, { color: colors.buttonText }]}>
+            <Text
+              style={[styles.retryButtonText, { color: colors.buttonText }]}
+            >
               {strings.retry || "Thử lại"}
             </Text>
           </TouchableOpacity>
@@ -576,8 +577,7 @@ export default function BooksScreen({
           </Text>
           {search.trim() && (
             <Text style={[styles.emptySubtext, { color: colors.muted }]}>
-              {strings.tryDifferentSearch ||
-                "Thử tìm kiếm với từ khóa khác"}
+              {strings.tryDifferentSearch || "Thử tìm kiếm với từ khóa khác"}
             </Text>
           )}
         </View>
@@ -631,16 +631,10 @@ export default function BooksScreen({
               const isLoading = favoriteLoading;
               return (
                 <Animated.View
-                  style={[
-                    styles.swipeActions,
-                    { transform: [{ translateX }] },
-                  ]}
+                  style={[styles.swipeActions, { transform: [{ translateX }] }]}
                 >
                   <TouchableOpacity
-                    style={[
-                      styles.swipeBtn,
-                      { backgroundColor: "#f0f0f0" },
-                    ]}
+                    style={[styles.swipeBtn, { backgroundColor: "#f0f0f0" }]}
                   >
                     <Ionicons
                       name="bookmark-outline"
@@ -658,7 +652,9 @@ export default function BooksScreen({
                     style={[
                       styles.swipeBtn,
                       {
-                        backgroundColor: Boolean(b.isFavorite) ? "#f6c344" : "#f6c344",
+                        backgroundColor: Boolean(b.isFavorite)
+                          ? "#f6c344"
+                          : "#f6c344",
                         opacity: isLoading ? 0.5 : 1,
                       },
                     ]}
@@ -689,29 +685,43 @@ export default function BooksScreen({
                         backgroundColor: Boolean(b.isBorrowed)
                           ? colors.inputBg
                           : colors.buttonBg,
-                        opacity: Boolean(b.isBorrowed) || (b.availableCopies <= 0 && b.status !== "có sẵn") ? 0.5 : 1,
+                        opacity:
+                          Boolean(b.isBorrowed) ||
+                          (b.availableCopies <= 0 && b.status !== "có sẵn")
+                            ? 0.5
+                            : 1,
                       },
                     ]}
                     onPress={() => {
                       const isBorrowed = Boolean(b.isBorrowed);
-                      if (isBorrowed || (b.availableCopies <= 0 && b.status !== "có sẵn")) {
+                      if (
+                        isBorrowed ||
+                        (b.availableCopies <= 0 && b.status !== "có sẵn")
+                      ) {
                         return;
                       }
                       openRowRef.current?.close();
                       openBorrowSheet(b);
                     }}
-                    disabled={Boolean(b.isBorrowed) || (b.availableCopies <= 0 && b.status !== "có sẵn")}
+                    disabled={
+                      Boolean(b.isBorrowed) ||
+                      (b.availableCopies <= 0 && b.status !== "có sẵn")
+                    }
                   >
                     <Ionicons
                       name="library-outline"
                       size={18}
-                      color={Boolean(b.isBorrowed) ? colors.text : colors.buttonText}
+                      color={
+                        Boolean(b.isBorrowed) ? colors.text : colors.buttonText
+                      }
                     />
                     <Text
                       style={[
                         styles.swipeText,
                         {
-                          color: Boolean(b.isBorrowed) ? colors.text : colors.buttonText,
+                          color: Boolean(b.isBorrowed)
+                            ? colors.text
+                            : colors.buttonText,
                         },
                       ]}
                       numberOfLines={1}
@@ -796,7 +806,9 @@ export default function BooksScreen({
                         {/* Luôn hiển thị status badge cho tất cả sách */}
                         {(() => {
                           const isBorrowed = Boolean(b.isBorrowed);
-                          const isAvailable = b.status === "có sẵn" || (b.availableCopies && b.availableCopies > 0);
+                          const isAvailable =
+                            b.status === "có sẵn" ||
+                            (b.availableCopies && b.availableCopies > 0);
 
                           return (
                             <>
@@ -807,8 +819,8 @@ export default function BooksScreen({
                                     backgroundColor: isBorrowed
                                       ? "#f39c12" + "20" // Màu cam nhạt cho "Đã mượn"
                                       : isAvailable
-                                        ? "#2ecc71" + "20" // Màu xanh nhạt cho "Có sẵn"
-                                        : "#e74c3c" + "20", // Màu đỏ nhạt cho "Không có sẵn"
+                                      ? "#2ecc71" + "20" // Màu xanh nhạt cho "Có sẵn"
+                                      : "#e74c3c" + "20", // Màu đỏ nhạt cho "Không có sẵn"
                                   },
                                 ]}
                               >
@@ -819,8 +831,8 @@ export default function BooksScreen({
                                       backgroundColor: isBorrowed
                                         ? "#f39c12" // Màu cam cho "Đã mượn"
                                         : isAvailable
-                                          ? "#2ecc71" // Màu xanh cho "Có sẵn"
-                                          : "#e74c3c", // Màu đỏ cho "Không có sẵn"
+                                        ? "#2ecc71" // Màu xanh cho "Có sẵn"
+                                        : "#e74c3c", // Màu đỏ cho "Không có sẵn"
                                     },
                                   ]}
                                 />
@@ -831,23 +843,32 @@ export default function BooksScreen({
                                       color: isBorrowed
                                         ? "#f39c12" // Màu cam cho "Đã mượn"
                                         : isAvailable
-                                          ? "#2ecc71" // Màu xanh cho "Có sẵn"
-                                          : "#e74c3c", // Màu đỏ cho "Không có sẵn"
+                                        ? "#2ecc71" // Màu xanh cho "Có sẵn"
+                                        : "#e74c3c", // Màu đỏ cho "Không có sẵn"
                                     },
                                   ]}
                                 >
                                   {isBorrowed
                                     ? strings.borrowed || "Đã mượn"
                                     : isAvailable
-                                      ? strings.available || "Có sẵn"
-                                      : strings.notAvailable || "Không có sẵn"}
+                                    ? strings.available || "Có sẵn"
+                                    : strings.notAvailable || "Không có sẵn"}
                                 </Text>
                               </View>
                               {/* Hiển thị ngày hết hạn nếu đã mượn */}
                               {isBorrowed && b.borrowDue && (
                                 <View style={styles.dueDateContainer}>
-                                  <Ionicons name="calendar-outline" size={12} color={colors.muted} />
-                                  <Text style={[styles.dueDate, { color: colors.muted }]}>
+                                  <Ionicons
+                                    name="calendar-outline"
+                                    size={12}
+                                    color={colors.muted}
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.dueDate,
+                                      { color: colors.muted },
+                                    ]}
+                                  >
                                     {strings.due || "Hạn"}: {b.borrowDue}
                                   </Text>
                                 </View>
@@ -907,7 +928,8 @@ export default function BooksScreen({
                 {strings.borrow || "Mượn sách"}
               </Text>
               <Text style={[styles.sheetText, { color: colors.muted }]}>
-                {strings.confirmBorrow || "Thời hạn mượn sách mặc định là 14 ngày kể từ ngày mượn. Bạn có thể chọn ngày hết hạn khác (tối đa 30 ngày)."}
+                {strings.confirmBorrow ||
+                  "Thời hạn mượn sách mặc định là 14 ngày kể từ ngày mượn. Bạn có thể chọn ngày hết hạn khác (tối đa 30 ngày)."}
               </Text>
 
               {/* Book Info */}
@@ -936,11 +958,23 @@ export default function BooksScreen({
                   onPress={() => setShowDatePicker(true)}
                   disabled={borrowing}
                 >
-                  <Ionicons name="calendar-outline" size={18} color={colors.text} />
+                  <Ionicons
+                    name="calendar-outline"
+                    size={18}
+                    color={colors.text}
+                  />
                   <Text style={[styles.datePickerText, { color: colors.text }]}>
-                    {formatDateForDisplay(selectedDueDate.toISOString())} ({Math.ceil((selectedDueDate - new Date()) / (1000 * 60 * 60 * 24))} ngày)
+                    {formatDateForDisplay(selectedDueDate.toISOString())} (
+                    {Math.ceil(
+                      (selectedDueDate - new Date()) / (1000 * 60 * 60 * 24)
+                    )}{" "}
+                    ngày)
                   </Text>
-                  <Ionicons name="chevron-down" size={16} color={colors.muted} />
+                  <Ionicons
+                    name="chevron-down"
+                    size={16}
+                    color={colors.muted}
+                  />
                 </TouchableOpacity>
                 <Text style={[styles.datePickerHint, { color: colors.muted }]}>
                   Mặc định: 14 ngày kể từ ngày mượn (tối đa: 30 ngày)
@@ -1031,7 +1065,10 @@ export default function BooksScreen({
                     <ActivityIndicator size="small" color={colors.buttonText} />
                   ) : (
                     <Text
-                      style={[styles.sheetBtnText, { color: colors.buttonText }]}
+                      style={[
+                        styles.sheetBtnText,
+                        { color: colors.buttonText },
+                      ]}
                     >
                       {strings.confirm || "Xác nhận"}
                     </Text>
@@ -1124,7 +1161,10 @@ export default function BooksScreen({
                     onPress={() => setShowDatePicker(false)}
                   >
                     <Text
-                      style={[styles.modalBtnText, { color: colors.buttonText }]}
+                      style={[
+                        styles.modalBtnText,
+                        { color: colors.buttonText },
+                      ]}
                     >
                       Xác nhận
                     </Text>
@@ -1151,9 +1191,7 @@ export default function BooksScreen({
             ]}
           >
             <View style={styles.filterModalHeader}>
-              <Text
-                style={[styles.filterModalTitle, { color: colors.text }]}
-              >
+              <Text style={[styles.filterModalTitle, { color: colors.text }]}>
                 Lọc theo danh mục
               </Text>
               <TouchableOpacity
@@ -1194,7 +1232,10 @@ export default function BooksScreen({
                         activeOpacity={0.7}
                       >
                         <Text
-                          style={[styles.filterCategoryTitle, { color: colors.text }]}
+                          style={[
+                            styles.filterCategoryTitle,
+                            { color: colors.text },
+                          ]}
                         >
                           {category.label}
                         </Text>
@@ -1222,9 +1263,7 @@ export default function BooksScreen({
                           )}
                           <Ionicons
                             name={
-                              isExpanded
-                                ? "chevron-down"
-                                : "chevron-forward"
+                              isExpanded ? "chevron-down" : "chevron-forward"
                             }
                             size={20}
                             color={colors.muted}
@@ -1312,10 +1351,7 @@ export default function BooksScreen({
                 activeOpacity={0.7}
               >
                 <Text
-                  style={[
-                    styles.filterModalBtnText,
-                    { color: colors.text },
-                  ]}
+                  style={[styles.filterModalBtnText, { color: colors.text }]}
                 >
                   Xóa bộ lọc
                 </Text>

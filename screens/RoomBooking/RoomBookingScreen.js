@@ -69,6 +69,37 @@ export default function RoomBookingScreen({
   const scrollViewRef = useRef(null);
   const purposeInputRef = useRef(null);
 
+  /**
+   * chọn thời gian sau giờ hiện tại nếu chọn ngày hôm nay
+   */
+  const availableTimeSlots = useMemo(() => {
+    const now = new Date();
+    const selectedDateObj = new Date(selectedDate.value);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDateObj.setHours(0, 0, 0, 0);
+
+    if (selectedDateObj.getTime() === today.getTime()) {
+      return mockTimeSlots.filter((timeSlot) => {
+        const [startTime] = timeSlot.split("-");
+        const [startHour, startMinute] = startTime.split(":").map(Number);
+
+        const slotTime = new Date();
+        slotTime.setHours(startHour, startMinute, 0, 0);
+
+        return slotTime > now;
+      });
+    }
+
+    return mockTimeSlots;
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (!availableTimeSlots.includes(selectedTime)) {
+      setSelectedTime(availableTimeSlots[0] || mockTimeSlots[0]);
+    }
+  }, [availableTimeSlots, selectedTime]);
+
   const convertToISO8601 = (dateValue, timeSlot) => {
     const [startTime, endTime] = timeSlot.split("-");
     const [startHour, startMinute] = startTime.split(":").map(Number);
@@ -239,15 +270,10 @@ export default function RoomBookingScreen({
     }
   };
 
-  /**
-   * Handle focus on purpose input - scroll to make it visible
-   */
   const handlePurposeFocus = () => {
-    // Delay to ensure keyboard is shown
     setTimeout(
       () => {
         if (scrollViewRef.current) {
-          // Scroll to end to show the input form
           scrollViewRef.current.scrollToEnd({ animated: true });
         }
       },
@@ -340,7 +366,7 @@ export default function RoomBookingScreen({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.timeScrollContainer}
             >
-              {mockTimeSlots.map((time) => (
+              {availableTimeSlots.map((time) => (
                 <TouchableOpacity
                   key={time}
                   style={[

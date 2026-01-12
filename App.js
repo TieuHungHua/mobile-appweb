@@ -28,13 +28,15 @@ import BookedRoomsScreen from "./screens/BookedRooms/BookedRoomsScreen";
 import NotificationsScreen from "./screens/Notifications/NotificationsScreen";
 import FAQScreen from "./screens/FAQ/FAQScreen";
 import { themes, i18n } from "./utils/theme";
-import { storeToken, storeRefreshToken, storeUserInfo, getStoredUserInfo } from "./utils/api";
-
-// FCM service đã được bỏ - chỉ dùng NotificationLog API
-
+import {
+  storeToken,
+  storeRefreshToken,
+  storeUserInfo,
+  getStoredUserInfo,
+} from "./utils/api";
 
 const MOCK_MODE = false; // chế độ mô phỏng: true = bỏ qua đăng nhập, false = dùng authentication
-const MOCK_START_SCREEN = "settings"; // màn hình bắt đầu: 'home', 'books', 'settings', 'chats', 'myBookshelf', 'bookDetail', etc.
+const MOCK_START_SCREEN = "aboutUs"; // màn hình bắt đầu: 'home', 'books', 'settings', 'chats', 'myBookshelf', 'bookDetail', etc.
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState(
@@ -100,12 +102,6 @@ export default function App() {
     checkAndShowModal();
   }, [currentScreen]);
 
-  // FCM push notifications đã được bỏ
-  // Chỉ dùng NotificationLog API để lấy danh sách thông báo
-
-  /**
-   * Handle book category modal continue
-   */
   const handleBookCategoryContinue = async (preferences) => {
     try {
       await saveBookCategoryPreferences(preferences);
@@ -153,7 +149,16 @@ export default function App() {
     screen = (
       <View style={{ flex: 1 }}>
         {/* Keep BooksScreen mounted in background to preserve state */}
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 0,
+          }}
+        >
           <BooksScreen
             theme={theme}
             lang={lang}
@@ -161,11 +166,20 @@ export default function App() {
             colors={colors}
             searchValue={booksSearch}
             onChangeSearch={setBooksSearch}
-            onNavigate={() => { }} // Prevent navigation when in background
+            onNavigate={() => {}} // Prevent navigation when in background
           />
         </View>
         {/* BookDetailScreen on top */}
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}>
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1,
+          }}
+        >
           <BookDetailScreen
             theme={theme}
             lang={lang}
@@ -368,9 +382,15 @@ export default function App() {
         colors={colors}
         onToggleTheme={toggleTheme}
         onSelectLanguage={selectLanguage}
-        onNavigate={(key) => {
+        onNavigate={(key, params) => {
           if (key === "settings") setCurrentScreen("settings");
-          if (key === "books") setCurrentScreen("books");
+          if (key === "books") {
+            if (params?.searchQuery !== undefined) {
+              setBooksSearch(params.searchQuery);
+            }
+            setCurrentScreen("books");
+            setPreviousScreen(null);
+          }
           if (key === "chats") setCurrentScreen("chats");
           if (key === "libraryCard") setCurrentScreen("libraryCard");
           if (key === "roomBooking") setCurrentScreen("roomBooking");

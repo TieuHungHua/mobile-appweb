@@ -109,22 +109,23 @@ export default function PrivacyPolicyScreen({
 
         {/* Policy Sections */}
         {policySections.map((section, index) => (
-          <View
-            key={index}
-            style={[
-              styles.sectionCard,
-              {
-                backgroundColor: colors.cardBg,
-                borderColor: colors.inputBorder,
-              },
-            ]}
-          >
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              {section.title}
-            </Text>
-            <Text style={[styles.sectionContent, { color: colors.muted }]}>
-              {section.content}
-            </Text>
+          <View key={index}>
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: colors.cardBg,
+                  borderColor: colors.inputBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                {section.title}
+              </Text>
+              <Text style={[styles.sectionContent, { color: colors.muted }]}>
+                {section.content}
+              </Text>
+            </View>
           </View>
         ))}
 

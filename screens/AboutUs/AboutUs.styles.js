@@ -34,7 +34,6 @@ export const createStyles = (colors) =>
     heroCard: {
       borderRadius: 16,
       padding: 24,
-      borderWidth: 1,
       alignItems: "center",
       shadowColor: "#000",
       shadowOpacity: 0.08,
@@ -64,7 +63,6 @@ export const createStyles = (colors) =>
     sectionCard: {
       borderRadius: 12,
       padding: 16,
-      borderWidth: 1,
       shadowColor: "#000",
       shadowOpacity: 0.03,
       shadowRadius: 4,
@@ -96,7 +94,7 @@ export const createStyles = (colors) =>
     contactCard: {
       borderRadius: 12,
       padding: 16,
-      borderWidth: 1,
+
       shadowColor: "#000",
       shadowOpacity: 0.03,
       shadowRadius: 4,
@@ -143,7 +141,7 @@ export const createStyles = (colors) =>
     footerCard: {
       borderRadius: 12,
       padding: 16,
-      borderWidth: 1,
+
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",

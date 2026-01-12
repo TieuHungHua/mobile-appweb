@@ -58,8 +58,9 @@ export const createStyles = (colors) =>
       paddingHorizontal: 16,
       paddingVertical: 10,
       borderRadius: 12,
-      borderWidth: 1,
       minWidth: 80,
+      shadowColor: "#000",
+      boxShadowOpacity: 0.1,
       alignItems: "center",
     },
     dateText: {
@@ -74,7 +75,9 @@ export const createStyles = (colors) =>
       paddingHorizontal: 16,
       paddingVertical: 10,
       borderRadius: 12,
-      borderWidth: 1,
+      shadowColor: "#000",
+      boxShadowOpacity: 0.1,
+
       minWidth: 100,
       alignItems: "center",
     },
